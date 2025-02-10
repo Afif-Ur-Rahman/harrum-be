@@ -3,7 +3,6 @@ import { statusCodes } from "@/constants/statusCodes";
 import { User, IUser } from "@/models/userModel";
 import { comparePasswords } from "@/utils/passwordHelper";
 import { generateToken } from "@/utils/jwtHelper";
-import userService from "@/services/userService";
 
 interface LoginRequest {
   email: string;
@@ -17,7 +16,7 @@ export const login = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { email, password, device, platform } = req.body;
+    const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select("+password");
     if (!user?.password) {
