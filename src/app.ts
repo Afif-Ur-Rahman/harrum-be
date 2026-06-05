@@ -5,9 +5,6 @@ import cors from "cors";
 import express, { Application } from "express";
 import helmet from "helmet";
 
-// import GeneralHelper from '#Services/GeneralHelper';
-import { errorMiddleware } from "@/middlewares";
-
 import { routes } from "./routes";
 
 const app: Application = express();
@@ -45,9 +42,5 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Routes
 app.use("/", routes);
-
-// Error Handling
-app.use(errorMiddleware.notFound);
-app.use(errorMiddleware.internalServerError);
 
 export default app;

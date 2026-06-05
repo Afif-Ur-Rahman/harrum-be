@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 import { User, IUser } from "@/modules/user/model";
-import { fileHelper } from "@/utils";
 
 const userObject = (user: IUser) => {
   const obj = user.toObject();
@@ -38,16 +37,10 @@ export const userService = {
 
   async deleteUser(userId: string) {
     try {
-      // await Post.deleteMany({ owner: userId });
-
       const user = await User.findByIdAndDelete(userId);
 
       if (!user) {
         throw new Error("User not found");
-      }
-
-      if (user.image) {
-        await fileHelper.deleteFile(user.image);
       }
 
       return user;

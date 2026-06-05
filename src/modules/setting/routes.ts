@@ -7,7 +7,6 @@ import {
   getSettings,
   updateSettings,
   getALlAdmin,
-  // getAllStore,
   getAllUser,
   sendTestNotification,
 } from "./setting-controller";
@@ -19,7 +18,6 @@ router.use(superAdminMiddleware);
 
 router.get("/admin", getALlAdmin);
 router.get("/user", getAllUser);
-// router.get("/store", getAllStore);
 router.put("/create-admin/:id", createAdmin);
 router.get("/", getSettings);
 router.post("/", updateSettings);

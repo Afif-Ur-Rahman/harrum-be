@@ -8,6 +8,5 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", userController.getAllUsers);
-router.get("/:id", userController.getUserInfo);
 
 export { router as userRoutes };

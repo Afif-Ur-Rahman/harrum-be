@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 import { IUser, User } from "@/modules/user/model";
-import { fileHelper } from "@/utils";
 
 const userObject = (user: IUser) => {
   const obj = user.toObject();
@@ -53,10 +52,6 @@ export const userService = {
 
       if (!user) {
         throw new Error("User not found");
-      }
-
-      if (user.image) {
-        await fileHelper.deleteFile(user.image);
       }
 
       return user;

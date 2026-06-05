@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
 
 import { sendEmail } from "@/config";
-import { clearAwsConfigCache } from "@/config/s3";
-import { ONESIGNAL, AWS, BREVO } from "@/constants/env";
+import { BREVO } from "@/constants/env";
 import { statusCodes } from "@/constants/statusCodes";
 import { catchAsync } from "@/utils/catch-async";
-// import { Store } from "@/models";
 
 import { User } from "../user/model";
 
@@ -18,19 +16,6 @@ export const getSettings = catchAsync(async (req: Request, res: Response): Promi
     const settingsObj: any = settings ? settings.toObject() : {};
 
     settings = {
-      aws: {
-        bucketName: settingsObj.aws?.bucketName || AWS.BUCKET_NAME,
-        region: settingsObj.aws?.region || AWS.REGION,
-        accessKeyId: settingsObj.aws?.accessKeyId || AWS.ACCESSKEYID,
-        secretAccessKey: settingsObj.aws?.secretAccessKey || AWS.SECRETACCESSKEY,
-        isLocal:
-          settingsObj.aws?.bucketName &&
-          settingsObj.aws?.region &&
-          settingsObj.aws?.accessKeyId &&
-          settingsObj.aws?.secretAccessKey
-            ? false
-            : true,
-      },
       brevo: {
         senderName: settingsObj.brevo?.senderName || BREVO.NAME,
         senderEmail: settingsObj.brevo?.senderEmail || BREVO.EMAIL,
@@ -41,19 +26,6 @@ export const getSettings = catchAsync(async (req: Request, res: Response): Promi
           settingsObj.brevo?.mailApiKey
             ? false
             : true,
-      },
-      oneSignal: {
-        oneSignalAppId: settingsObj.oneSignal?.oneSignalAppId || ONESIGNAL.APP_ID,
-        oneSignalApiKey: settingsObj.oneSignal?.oneSignalApiKey || ONESIGNAL.API_KEY,
-        isLocal:
-          settingsObj.oneSignal?.oneSignalAppId && settingsObj.oneSignal?.oneSignalApiKey
-            ? false
-            : true,
-      },
-      social: {
-        appleId: settingsObj.social?.appleId || "",
-        googleId: settingsObj.social?.googleId || "",
-        isLocal: settingsObj.social?.appleId && settingsObj.social?.googleId ? false : true,
       },
     } as any;
     return res.status(statusCodes.OK).json({
@@ -70,18 +42,15 @@ export const getSettings = catchAsync(async (req: Request, res: Response): Promi
 
 export const updateSettings = catchAsync(async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { aws, brevo, oneSignal, social } = req.body;
+    const { aws, brevo } = req.body;
     const allowedUpdate: Record<string, any> = {};
     if (aws) allowedUpdate.aws = aws;
     if (brevo) allowedUpdate.brevo = brevo;
-    if (oneSignal) allowedUpdate.oneSignal = oneSignal;
-    if (social) allowedUpdate.social = social;
     const settings = await Settings.findOneAndUpdate(
       {},
       { $set: allowedUpdate },
       { upsert: true, new: true },
     );
-    if (aws) clearAwsConfigCache();
     return res.status(statusCodes.OK).json({
       message: "Settings updated successfully",
       data: settings,
