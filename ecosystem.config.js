@@ -1,12 +1,16 @@
+require("dotenv").config();
+
+const PORT = process.env.PORT || 3012;
+
 module.exports = {
   apps: [
     {
-      name: "harrum",
+      name: `restaurant-api-${PORT}`,
       script: "./dist/index.js",
       interpreter: "node",
       interpreter_args: "-r ./register-aliases.js",
       env: {
-        PORT: 3007,
+        PORT,
       },
       autorestart: true,
       error_file: "./logs/pm2/error.log",
@@ -14,12 +18,6 @@ module.exports = {
       log_file: "./logs/pm2/combined.log",
       time: true,
     },
-    {
-      name: "teilim-cronjob",
-      script: "./scripts/cronjob.sh",
-      cron_restart: "*/10 * * * *",
-      autorestart: false
-    }
   ],
   deploy: {
     production: {
@@ -29,8 +27,7 @@ module.exports = {
       repo: "GIT_REPOSITORY",
       path: "DESTINATION_PATH",
       "pre-deploy-local": "",
-      "post-deploy":
-        "yarn install && pm2 reload ecosystem.config.js --env production",
+      "post-deploy": "yarn install && pm2 reload ecosystem.config.js --env production",
       "pre-setup": "",
     },
   },

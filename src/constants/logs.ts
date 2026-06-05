@@ -27,7 +27,4 @@ export const LOGUI = {
   Underscore: "\x1b[4m%s\x1b[0m",
   Blink: "\x1b[5m%s\x1b[0m",
   Reverse: "\x1b[7m%s\x1b[0m",
-
-
-
 };

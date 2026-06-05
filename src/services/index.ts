@@ -1,2 +1,3 @@
-export * from "./otpService";
-export * from "./userService";
+export * from "./otp-service";
+export * from "./user-service";
+export * from "./dashboard-service";

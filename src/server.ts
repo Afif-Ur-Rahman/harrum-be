@@ -1,7 +1,9 @@
 import { createServer as createHttpServer } from "http";
+
 import { MODE } from "@/constants/env";
-import app from "./app";
 import { LOGUI } from "@/constants/logs";
+
+import app from "./app";
 
 const createServer = () => {
   console.log(LOGUI.FgGreen, `Creating server... ${MODE} mode`);
@@ -9,4 +11,5 @@ const createServer = () => {
 };
 
 const server = createServer();
+
 export { server };

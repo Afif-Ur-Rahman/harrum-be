@@ -1,2 +1,1 @@
-export * from "./userModel";
-export * from "./prayModel";
+export * from "./employee-model";

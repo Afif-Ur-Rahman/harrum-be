@@ -17,5 +17,10 @@ package-lock.json
 .git-*
 .DS_Store
 /assets/certs/*
+yarn.lock
 
+# directory
 dist
+logs
+.claude
+backups

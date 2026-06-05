@@ -1,4 +1,3 @@
-export * from "./auth";
-export * from "./user";
-export * from "./dashboard";
-export * from "./prayer";
+export * from "./product-controller";
+export * from "./dashboard-controller";
+export * from "./employee-controller";
