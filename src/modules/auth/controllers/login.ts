@@ -18,7 +18,7 @@ interface LoginRequest {
 export const login = catchAsync(
   async (req: Request<object, object, LoginRequest>, res: Response): Promise<Response> => {
     try {
-      const { email, password, device, platform, rememberMe } = req.body;
+      const { email, password, rememberMe } = req.body;
       // Try Owner first, then Employee, then User
       const owner = await User.findOne({ email, type: "owner" }).select("+password");
       const employee = !owner
@@ -50,12 +50,6 @@ export const login = catchAsync(
 
       if (!mainMatch && !tempMatch) {
         return res.status(statusCodes.NOT_FOUND).json({ message: "Invalid credentials" });
-      }
-
-      if (device && platform) {
-        (account as any).device = device;
-        (account as any).platform = platform;
-        await account.save();
       }
 
       const token = generateToken(account as any, rememberMe || false);

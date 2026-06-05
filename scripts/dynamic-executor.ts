@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+/// <reference types="node" />
 // @description Dynamic script executor that automatically discovers and runs scripts in the scripts directory
 
 import { spawn } from "child_process";
