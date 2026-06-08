@@ -1,33 +1,49 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants/statusCodes";
+import { Employee, IEmployee } from "@/models";
 import { comparePasswords, hashPassword } from "@/modules/auth/utils";
+
+import { IUser, User } from "../model";
 
 export const changeProfilePassword = async (req: Request, res: Response) => {
   try {
-    const { oldPassword, newPassword } = req.body;
-    // req.user is the correct model document — work on it directly
-    const account = req.user as any;
+    const { _id, type } = req.user as IUser | IEmployee;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
 
-    // Fetch with password field since it's excluded by default in authMiddleware
-    const accountWithPassword = await account.constructor.findById(account._id).select("+password");
+    if (newPassword !== confirmPassword) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json({ message: "New password and confirm password do not match" });
+    }
 
-    if (!accountWithPassword?.password) {
+    let user: IUser | IEmployee;
+    if (type === "owner") {
+      user = await User.findById(_id).select("+password");
+    } else {
+      user = await Employee.findById(_id).select("+password");
+    }
+
+    if (!user.password) {
       return res.status(statusCodes.NOT_FOUND).json({ message: "Account not found" });
     }
 
-    const isMatch = await comparePasswords(oldPassword, accountWithPassword.password);
+    const isMatch = await comparePasswords(oldPassword, user.password);
     if (!isMatch) {
-      return res.status(statusCodes.BAD_REQUEST).json({ message: "Incorrect old password" });
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json({ success: false, message: "Incorrect old password" });
     }
 
-    accountWithPassword.password = await hashPassword(newPassword);
-    await accountWithPassword.save();
+    user.password = await hashPassword(newPassword);
+    await user.save();
 
-    return res.status(statusCodes.OK).json({ message: "Password changed successfully" });
+    return res
+      .status(statusCodes.OK)
+      .json({ success: true, message: "Password changed successfully" });
   } catch (error: Error | any) {
     return res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: error.message || "Server error", error });
+      .json({ success: false, message: error.message || "Server error", error });
   }
 };

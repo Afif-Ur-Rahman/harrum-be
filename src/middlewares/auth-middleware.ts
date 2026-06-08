@@ -3,12 +3,12 @@ import jwt from "jsonwebtoken";
 
 import { JWT_SECRET } from "@/constants/env";
 import { statusCodes } from "@/constants/statusCodes";
-import { Employee } from "@/models/employee-model";
-import { User } from "@/modules/user/model";
+import { Employee, IEmployee } from "@/models/employee-model";
+import { IUser, User } from "@/modules/user/model";
 
 interface JwtPayload {
   id: string;
-  accountType?: "owner" | "worker" | "accountant" | "user";
+  accountType?: "owner" | "worker" | "accountant";
 }
 
 export const authMiddleware = async (
@@ -29,15 +29,12 @@ export const authMiddleware = async (
       user = await User.findById(decoded.id).select("-password");
     } else if (decoded.accountType === "worker" || decoded.accountType === "accountant") {
       user = await Employee.findById(decoded.id).select("-password -tempPassword");
-    } else {
-      // "user" or legacy tokens without accountType
-      user = await User.findById(decoded.id).select("-password");
     }
     if (!user) {
       throw new Error("Access denied. Invalid token.");
     }
 
-    req.user = user as any;
+    req.user = user as IUser | IEmployee;
     next();
   } catch (error: any) {
     res.status(statusCodes.UNAUTHORIZED).json({
