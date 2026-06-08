@@ -7,6 +7,7 @@ export interface IEmployee extends Document {
   password?: string;
   username: string;
   type: EmployeeRole;
+  isDeleted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -30,6 +31,7 @@ const employeeSchema = new mongoose.Schema<IEmployee>(
       enum: ["worker", "accountant"],
       required: true,
     },
+    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
