@@ -56,15 +56,8 @@ const createAdminUsers = async () => {
       const superAdmin = new User({
         email: ADMIN_USERS.SUPERADMIN.EMAIL,
         username: ADMIN_USERS.SUPERADMIN.USERNAME,
-        fullName: ADMIN_USERS.SUPERADMIN.FULL_NAME,
         password: superAdminPassword,
         type: ADMIN_USERS.SUPERADMIN.TYPE,
-        phone: "",
-        bio: "System Super Administrator",
-        city: "",
-        gender: "Other",
-        // image:
-        //   "https://res.cloudinary.com/dc1vhqmg2/image/upload/v1759832040/avatar-removebg-preview_xkwoli.png",
       });
 
       await superAdmin.save();

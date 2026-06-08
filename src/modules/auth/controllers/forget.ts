@@ -9,7 +9,7 @@ import { otpService } from "@/services";
 import { otpEmailTemplate } from "@/templates";
 import { catchAsync } from "@/utils/catch-async";
 
-import { hashPassword, generateToken } from "../utils";
+import { hashPassword } from "../utils";
 
 async function findAccountByEmail(email: string) {
   const owner = await User.findOne({ email, type: "owner" });
@@ -18,45 +18,6 @@ async function findAccountByEmail(email: string) {
   if (employee) return employee;
   return User.findOne({ email });
 }
-
-export const forgotPasswordLink = catchAsync(
-  async (req: Request, res: Response): Promise<Response> => {
-    const { email, callback } = req.body;
-
-    try {
-      let callbackUrl: URL;
-      try {
-        callbackUrl = new URL(callback);
-        if (!["http:", "https:"].includes(callbackUrl.protocol)) throw new Error();
-      } catch {
-        return res.status(statusCodes.BAD_REQUEST).json({ message: "Invalid callback URL" });
-      }
-
-      const account = await findAccountByEmail(email);
-      if (!account) {
-        return res.status(statusCodes.NOT_FOUND).json({ message: "User not found" });
-      }
-
-      const token = generateToken(account as any);
-      callbackUrl.searchParams.set("token", token);
-      const resetLink = callbackUrl.toString();
-
-      await sendEmail({
-        to: email,
-        subject: "Password Reset",
-        html: `<p>Click here to reset your password: </p> <a href=${resetLink}>${resetLink}</a>`,
-      });
-
-      return res.status(statusCodes.OK).json({
-        message: "Password reset link sent to your email that will expire in 1 hour",
-      });
-    } catch (error: Error | any) {
-      return res
-        .status(statusCodes.INTERNAL_SERVER_ERROR)
-        .json({ message: error.message || "Error sending password reset link", error });
-    }
-  },
-);
 
 export const forgotPasswordOtp = catchAsync(
   async (req: Request, res: Response): Promise<Response> => {

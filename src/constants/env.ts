@@ -23,8 +23,7 @@ export const ADMIN_USERS = {
   SUPERADMIN: {
     EMAIL: process.env.SUPERADMIN_EMAIL || "",
     PASSWORD: process.env.SUPERADMIN_PASSWORD || "",
-    USERNAME: "superadmin",
-    FULL_NAME: "Super Admin",
-    TYPE: "superAdmin",
+    USERNAME: "Owner",
+    TYPE: "owner",
   },
 };

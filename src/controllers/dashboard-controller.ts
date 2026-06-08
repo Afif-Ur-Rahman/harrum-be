@@ -55,7 +55,6 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       .status(statusCodes.CREATED)
       .json({ message: `${type} created successfully`, data: newEmployee });
   } catch (error: Error | any) {
-    console.log("error creating employee", error);
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: error.message || "Error creating employee",
       error,
@@ -97,7 +96,7 @@ export const deleteEmployee = catchAsync(async (req: Request, res: Response) => 
       return res.status(statusCodes.NOT_FOUND).json({ message: "Employee not found" });
     }
 
-    if (owner._id.toString() !== employee.owner?.toString()) {
+    if (owner.type !== "owner") {
       return res
         .status(statusCodes.UNAUTHORIZED)
         .json({ message: "You are not authorized to delete this employee." });

@@ -9,20 +9,8 @@ import { catchAsync } from "@/utils";
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   try {
     const owner = req.user as IUser;
-    const {
-      name,
-      description,
-      media,
-      purchasePrice,
-      sellingPrice,
-      variants,
-      brand,
-      size,
-      currency,
-    } = req.body;
+    const { name, description, purchasePrice, sellingPrice, variants, brand, size } = req.body;
     const parsedVariants = typeof variants === "string" ? JSON.parse(variants) : variants;
-
-    console.log("Parsed variants:", parsedVariants);
 
     const preparedVariants = [];
 
@@ -54,7 +42,7 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
           color: v.color,
           brand: brand || "",
           createdBy: owner._id,
-          createdByName: owner.fullName || owner.username || "Unknown",
+          createdByName: owner.username || "Unknown",
           type: "stock-in",
         });
 
@@ -77,7 +65,7 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
               color: v.color,
               brand: brand || "",
               createdBy: owner._id,
-              createdByName: owner.fullName || owner.username || "Unknown",
+              createdByName: owner.username || "Unknown",
               type: "stock-in",
               reason: "Product created",
             },
@@ -96,11 +84,9 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
       owner: owner._id,
       name,
       description,
-      media: media || [],
       purchasePrice: Number(purchasePrice),
       sellingPrice: Number(sellingPrice),
       brand: brand || "",
-      currency: currency || "PKR",
       size: size || "",
       variants: preparedVariants,
     });
@@ -123,17 +109,7 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
     const owner = req.user as IUser;
     const { id } = req.params;
 
-    const {
-      name,
-      description,
-      media,
-      purchasePrice,
-      sellingPrice,
-      variants,
-      brand,
-      size,
-      currency,
-    } = req.body;
+    const { name, description, purchasePrice, sellingPrice, variants, brand, size } = req.body;
 
     const product = await Product.findOne({ _id: id, owner: owner._id });
     if (!product) {
@@ -144,12 +120,10 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
 
     const nextName = name ?? product.name;
     const nextDescription = description ?? product.description;
-    const nextMedia = media ?? product.media;
     const nextPurchasePrice = purchasePrice ?? product.purchasePrice;
     const nextSellingPrice = Number(sellingPrice ?? product.sellingPrice);
     const nextBrand = brand ?? product.brand ?? "";
     const nextSize = size ?? product.size ?? "";
-    const nextCurrency = currency ?? product.currency ?? "PKR";
 
     const parsedVariants = typeof variants === "string" ? JSON.parse(variants) : variants;
 
@@ -229,7 +203,7 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
             color,
             brand: nextBrand,
             createdBy: owner._id,
-            createdByName: owner.fullName || owner.username || "Unknown",
+            createdByName: owner.username || "Unknown",
             type: diff > 0 ? "stock-in" : "wastage",
             reason: "Product updated",
           });
@@ -270,7 +244,7 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
           color: removedVariant.color || "",
           brand: nextBrand,
           createdBy: owner._id,
-          createdByName: owner.fullName || owner.username || "Unknown",
+          createdByName: owner.username || "Unknown",
           type: "wastage",
           reason: "Variant removed from product",
         });
@@ -283,12 +257,10 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
 
     product.name = nextName;
     product.description = nextDescription;
-    product.media = nextMedia;
     product.purchasePrice = Number(nextPurchasePrice);
     product.sellingPrice = nextSellingPrice;
     product.brand = nextBrand;
     product.size = nextSize;
-    product.currency = nextCurrency;
 
     await product.save();
 

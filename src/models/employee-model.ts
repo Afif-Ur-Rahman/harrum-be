@@ -6,14 +6,7 @@ export interface IEmployee extends Document {
   email: string;
   password?: string;
   username: string;
-  fullName?: string;
-  image?: string;
   type: EmployeeRole;
-  owner: mongoose.Types.ObjectId;
-  tempPassword?: string;
-  tempPasswordExpiry?: Date;
-  device?: string;
-  platform?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -32,32 +25,18 @@ const employeeSchema = new mongoose.Schema<IEmployee>(
       minlength: 8,
     },
     username: { type: String },
-    fullName: { type: String },
-    image: { type: String },
     type: {
       type: String,
       enum: ["worker", "accountant"],
       required: true,
     },
-    owner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    tempPassword: { type: String },
-    tempPasswordExpiry: { type: Date },
-    device: { type: String },
-    platform: { type: String },
   },
   { timestamps: true },
 );
 
-employeeSchema.index({ owner: 1, type: 1 });
-
 employeeSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
-  delete obj.tempPassword;
   delete obj.__v;
   return obj;
 };

@@ -24,9 +24,8 @@ export const login = catchAsync(
       const employee = !owner
         ? await Employee.findOne({ email }).select("+password +tempPassword")
         : null;
-      const user = !owner && !employee ? await User.findOne({ email }).select("+password") : null;
 
-      const account = owner ?? employee ?? user;
+      const account = owner ?? employee;
 
       if (!account || !("password" in account) || !account.password) {
         return res.status(statusCodes.NOT_FOUND).json({ message: "Invalid credentials" });
@@ -34,21 +33,7 @@ export const login = catchAsync(
 
       const mainMatch = await comparePasswords(password, account.password);
 
-      // Employee temp-password support
-      let tempMatch = false;
-      if (employee && "tempPassword" in employee && employee.tempPassword) {
-        tempMatch = await comparePasswords(password, employee.tempPassword);
-        if (tempMatch && "tempPasswordExpiry" in employee && employee.tempPasswordExpiry) {
-          const isExpired = new Date() > new Date(employee.tempPasswordExpiry);
-          if (isExpired) {
-            return res.status(statusCodes.UNAUTHORIZED).json({
-              message: "Temporary password has expired.",
-            });
-          }
-        }
-      }
-
-      if (!mainMatch && !tempMatch) {
+      if (!mainMatch) {
         return res.status(statusCodes.NOT_FOUND).json({ message: "Invalid credentials" });
       }
 

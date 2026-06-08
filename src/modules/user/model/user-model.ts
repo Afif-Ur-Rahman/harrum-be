@@ -1,37 +1,14 @@
 import mongoose, { Document, Model } from "mongoose";
 
-const userTypes = ["normal", "temp", "admin", "superAdmin", "support", "owner"] as const;
-
 export interface IUser extends Document {
   email: string;
-  fullName?: string;
   username: string;
   password?: string;
   otp?: string;
   otpExpires?: Date;
-  dob?: string;
-  phone?: string;
-  gender?: "Male" | "Female" | "Other" | string;
-  image?: string;
-  coverImage?: string;
-  city?: string;
-  bio?: string;
-  location?: {
-    type: "Point";
-    coordinates: [number, number];
-  };
-  address?: string;
-  country?: string;
-  zip?: string;
-  device?: string;
-  type?: (typeof userTypes)[number];
-  platform?: string;
-  channels?: string[];
-  isVerified?: boolean;
-  language?: "en" | "ar" | "fr" | "sp" | string;
+  type?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  currency?: string;
   rememberMe?: boolean;
 }
 
@@ -53,64 +30,16 @@ const userSchema = new mongoose.Schema<IUser, UserModel>(
     username: {
       type: String,
     },
-    fullName: {
-      type: String,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-
     password: {
       type: String,
       required: [true, "Password is required"],
       minlength: 8,
     },
-    bio: String,
-    phone: String,
     otp: String,
     otpExpires: Date,
-    city: {
-      type: String,
-      trim: true,
-    },
-    language: {
-      type: String,
-      enum: ["en", "ar", "fr", "sp"],
-      default: "en",
-    },
-    dob: {
-      type: Date,
-    },
-    gender: {
-      type: String,
-      enum: ["Male", "Female", "Other"],
-    },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-      },
-      coordinates: {
-        type: [Number],
-      },
-    },
-    address: String,
-    country: String,
-    zip: String,
-    image: String,
-    coverImage: String,
-    device: String,
-    platform: String,
     type: {
       type: String,
-      enum: userTypes,
-      default: "normal",
-    },
-    channels: [String],
-    currency: {
-      type: String,
-      default: "USD",
+      default: "owner",
     },
     rememberMe: {
       type: Boolean,

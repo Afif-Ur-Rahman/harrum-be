@@ -81,6 +81,7 @@ export const sellProduct = catchAsync(async (req: Request, res: Response) => {
     stock.quantity -= Number(quantity);
 
     // Add stock history
+    const createdByName = (employee.username as string) || employee.email || "Unknown";
     stock.stockHistory.push({
       price: product.sellingPrice,
       quantity: Number(quantity),
@@ -88,7 +89,7 @@ export const sellProduct = catchAsync(async (req: Request, res: Response) => {
       color: variant.color || "",
       brand: product.brand || "",
       createdBy: employee._id,
-      createdByName: employee.fullName || employee.username || "Unknown",
+      createdByName,
     });
 
     // Save updates

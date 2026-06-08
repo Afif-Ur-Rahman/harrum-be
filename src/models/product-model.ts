@@ -4,7 +4,7 @@ export interface IProduct {
   owner: mongoose.Types.ObjectId;
   name: string;
   description?: string;
-  media: string[];
+  wholesalePrice?: number;
   purchasePrice: number;
   sellingPrice: number;
   variants: {
@@ -13,9 +13,8 @@ export interface IProduct {
     stock: mongoose.Types.ObjectId;
     quantity: number;
   }[];
-  size?: string;
-  brand?: string;
-  currency?: string;
+  size: string;
+  brand: string;
 }
 
 const productSchema = new mongoose.Schema<IProduct>(
@@ -27,11 +26,10 @@ const productSchema = new mongoose.Schema<IProduct>(
     },
     name: { type: String, required: [true, "Name is required"] },
     description: { type: String },
-    media: { type: [String], default: [] },
+    wholesalePrice: { type: Number },
     purchasePrice: { type: Number, required: [true, "Purchase price is required"] },
     sellingPrice: { type: Number, required: [true, "Selling price is required"] },
     brand: { type: String },
-    currency: { type: String, default: "PKR" },
     size: { type: String },
     variants: [
       {

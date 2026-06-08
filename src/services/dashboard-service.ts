@@ -21,7 +21,6 @@ export const buildDashboardStats = async (
     Stock.find({ owner: ownerId }).select("_id name quantity updatedAt stockHistory").lean(),
   ]);
 
-  const currency = products[0]?.currency || "PKR";
   const purchasePriceMap = new Map(
     products.map((product) => [product.name, Number(product.purchasePrice) || 0]),
   );
@@ -93,7 +92,7 @@ export const buildDashboardStats = async (
   const stats = [
     {
       title: "Total Revenue",
-      value: formatCurrency(totalRevenue, currency),
+      value: formatCurrency(totalRevenue),
       change: revenueChange.change,
       trend: revenueChange.trend,
       subtitle: "vs last month",
@@ -114,7 +113,7 @@ export const buildDashboardStats = async (
     },
     {
       title: "Net Income",
-      value: formatCurrency(netIncome, currency),
+      value: formatCurrency(netIncome),
       change: netIncomeChange.change,
       trend: netIncomeChange.trend,
       subtitle: "estimated profit",
@@ -172,7 +171,7 @@ export const buildDashboardStats = async (
     .map((item) => ({
       name: item.name,
       orders: item.orders,
-      revenue: formatCurrency(item.revenue, currency),
+      revenue: formatCurrency(item.revenue),
       share: totalSoldUnits ? Math.round((item.orders / totalSoldUnits) * 100) : 0,
     }));
 
