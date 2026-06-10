@@ -4,7 +4,7 @@
   "description": "A Node.js project with TypeScript, MongoDB, and authentication system.",
   "main": "src",
   "scripts": {
-    "start": "yarn build && nodemon dist/index.js",
+    "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "prepare": "husky",
@@ -13,7 +13,6 @@
     "script": "ts-node -r tsconfig-paths/register scripts/dynamic-executor.ts"
   },
   "dependencies": {
-    "@socket.io/redis-adapter": "^8.3.0",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "axios": "^1.13.2",
