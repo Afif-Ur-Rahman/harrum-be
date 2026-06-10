@@ -7,11 +7,10 @@ import { settingRoutes } from "@/modules/setting/routes";
 
 import { dashboardRoutes } from "./dashboard-routes";
 import { employeeRoutes } from "./employee-routes";
-import { productRoutes } from "./product-routes";
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", (_req, res) => {
   res.json({ message: "Welcome to the Harrum Cloth House API" });
 });
 
@@ -25,6 +24,5 @@ router.use("/api/employee", employeeRoutes);
 router.use("/api/profile", profileRoutes);
 
 router.use("/api/stock", stockRoutes);
-router.use("/api/product", productRoutes);
 
 export { router as routes };

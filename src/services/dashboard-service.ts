@@ -1,4 +1,3 @@
-import { Product } from "@/models/product-model";
 import { Stock } from "@/modules/stock/model";
 import {
   formatCompactNumber,
@@ -16,14 +15,11 @@ export const buildDashboardStats = async (
   const threshold = Number(options?.threshold || 20);
   const monthsCount = Number(options?.months || 6);
 
-  const [products, stocks] = await Promise.all([
-    Product.find({ owner: ownerId }).select("name purchasePrice sellingPrice currency").lean(),
-    Stock.find({ owner: ownerId }).select("_id name quantity updatedAt stockHistory").lean(),
-  ]);
+  const stocks = await Stock.find({ owner: ownerId })
+    .select("_id name quantity updatedAt stockHistory")
+    .lean();
 
-  const purchasePriceMap = new Map(
-    products.map((product) => [product.name, Number(product.purchasePrice) || 0]),
-  );
+  const purchasePriceMap = new Map(stocks.map((stock) => [stock.name, stock.wholesalePrice || 0]));
 
   const historyEntries = stocks.flatMap((stock: any) =>
     (stock.stockHistory || []).map((entry: any) => ({
