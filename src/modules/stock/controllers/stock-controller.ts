@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
 
-import { IStock, Stock } from "../model";
+import { IStock, Stock, StockVariant } from "../model";
 
 export const getStocks = async (_req: Request, res: Response) => {
   try {
@@ -25,32 +25,87 @@ export const createStock = async (req: Request, res: Response) => {
   try {
     const { stockItems } = req.body;
 
+    if (!Array.isArray(stockItems) || stockItems.length === 0) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "Stock items are required",
+      });
+    }
+
     await Promise.all(
-      stockItems.map((item: IStock) =>
-        new Stock({
+      stockItems.map(async (item: IStock & { _id?: string }) => {
+        const variants = item.variants?.map((variant) => ({
+          color: variant.color,
+          quantity: Number(variant.quantity),
+        }));
+
+        if (!variants?.length) {
+          throw new Error("At least one variant is required");
+        }
+
+        if (item._id) {
+          const existingStock = await Stock.findById(item._id);
+
+          if (!existingStock) {
+            throw new Error(`Stock not found with id: ${item._id}`);
+          }
+
+          existingStock.name = item.name;
+          existingStock.brand = item.brand;
+          existingStock.article = item.article;
+          existingStock.size = item.size;
+          existingStock.wholesalePrice = item.wholesalePrice;
+          existingStock.salePrice = item.salePrice;
+
+          variants.forEach((newVariant) => {
+            const existingVariant = existingStock.variants.find(
+              (variant: StockVariant) =>
+                variant.color.toLowerCase() === newVariant.color.toLowerCase(),
+            );
+
+            if (existingVariant) {
+              existingVariant.quantity =
+                Number(existingVariant.quantity || 0) + Number(newVariant.quantity);
+            } else {
+              existingStock.variants.push(newVariant);
+            }
+          });
+
+          existingStock.history.push({
+            wholesalePrice: item.wholesalePrice,
+            salePrice: item.salePrice,
+            variants,
+            date: new Date(),
+          });
+
+          await existingStock.save();
+          return;
+        }
+
+        await new Stock({
           name: item.name,
           brand: item.brand,
           article: item.article,
           wholesalePrice: item.wholesalePrice,
           salePrice: item.salePrice,
           size: item.size,
-          variants: item.variants,
+          variants,
           history: [
             {
               wholesalePrice: item.wholesalePrice,
               salePrice: item.salePrice,
-              variants: item.variants,
+              variants,
             },
           ],
-        }).save(),
-      ),
+        }).save();
+      }),
     );
 
     const stock = await Stock.find().sort({ createdAt: -1 });
 
     return res.status(statusCodes.CREATED).json({
       success: true,
-      message: "Stock created successfully",
+      message: "Stock saved successfully",
       data: stock,
     });
   } catch (error: any) {
@@ -63,7 +118,7 @@ export const createStock = async (req: Request, res: Response) => {
 
     return res.status(statusCodes.BAD_REQUEST).json({
       success: false,
-      message: error.message || "Failed to create stock",
+      message: error.message || "Failed to save stock",
     });
   }
 };
