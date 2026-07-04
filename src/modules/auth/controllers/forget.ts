@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 
 import { sendEmail } from "@/config";
-import { SERVER_URL } from "@/constants/env";
 import { statusCodes } from "@/constants/statusCodes";
 import { Employee } from "@/models/employee-model";
 import { User } from "@/modules/user/model";
@@ -47,7 +46,6 @@ export const forgotPasswordOtp = catchAsync(
           headline: "Use this code to reset your password",
           subheading:
             "Enter the OTP below to prove it's really you before creating a new password.",
-          copyUrl: `${SERVER_URL}/auth/password-reset?email=${encodeURIComponent(email)}&otp=${otp}`,
         }),
       };
       await sendEmail(mailInfo);

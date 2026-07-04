@@ -3,7 +3,6 @@ interface OtpEmailTemplateOptions {
   recipientName?: string;
   headline?: string;
   subheading?: string;
-  copyUrl?: string;
   supportEmail?: string;
   brandName?: string;
   footerNote?: string;
