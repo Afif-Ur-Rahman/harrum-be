@@ -52,8 +52,8 @@ export const createStock = async (req: Request, res: Response) => {
 
           existingStock.name = item.name;
           existingStock.brand = item.brand;
-          existingStock.article = item.article;
           existingStock.size = item.size;
+          existingStock.purchasePrice = item.purchasePrice;
           existingStock.wholesalePrice = item.wholesalePrice;
           existingStock.salePrice = item.salePrice;
 
@@ -72,6 +72,7 @@ export const createStock = async (req: Request, res: Response) => {
           });
 
           existingStock.history.push({
+            purchasePrice: item.purchasePrice,
             wholesalePrice: item.wholesalePrice,
             salePrice: item.salePrice,
             variants,
@@ -85,7 +86,7 @@ export const createStock = async (req: Request, res: Response) => {
         await new Stock({
           name: item.name,
           brand: item.brand,
-          article: item.article,
+          purchasePrice: item.purchasePrice,
           wholesalePrice: item.wholesalePrice,
           salePrice: item.salePrice,
           size: item.size,
@@ -112,7 +113,7 @@ export const createStock = async (req: Request, res: Response) => {
     if (error.code === 11000) {
       return res.status(statusCodes.CONFLICT).json({
         success: false,
-        message: "Stock with this brand and article already exists",
+        message: "Stock with this name and brand already exists",
       });
     }
 
