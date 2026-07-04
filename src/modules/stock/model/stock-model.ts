@@ -7,6 +7,7 @@ export type StockVariant = {
 
 export type StockHistory = {
   _id?: mongoose.Types.ObjectId;
+  purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
   variants: StockVariant[];
@@ -16,11 +17,11 @@ export type StockHistory = {
 export interface IStock extends Document {
   name: string;
   brand: string;
+  purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
   variants: StockVariant[];
   size: string;
-  article: string;
   history: StockHistory[];
 }
 
@@ -44,6 +45,11 @@ const variantSchema = new mongoose.Schema<StockVariant>(
 
 const historySchema = new mongoose.Schema<StockHistory>(
   {
+    purchasePrice: {
+      type: Number,
+      required: [true, "Purchase price is required"],
+      min: [0, "Purchase price cannot be negative"],
+    },
     wholesalePrice: {
       type: Number,
       required: [true, "Whole sale price is required"],
@@ -89,6 +95,11 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
       trim: true,
       uppercase: true,
     },
+    purchasePrice: {
+      type: Number,
+      required: [true, "Purchase price is required"],
+      min: [0, "Purchase price cannot be negative"],
+    },
     wholesalePrice: {
       type: Number,
       required: [true, "Whole sale price is required"],
@@ -118,12 +129,6 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
         message: "At least one variant is required",
       },
     },
-    article: {
-      type: String,
-      required: [true, "Article is required"],
-      trim: true,
-      uppercase: true,
-    },
     history: {
       type: [historySchema],
       default: [],
@@ -136,8 +141,6 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
 
 stockSchema.index({ name: 1 });
 stockSchema.index({ brand: 1 });
-stockSchema.index({ article: 1 });
-stockSchema.index({ brand: 1, article: 1 }, { unique: true });
-stockSchema.index({ name: 1, brand: 1 });
+stockSchema.index({ name: 1, brand: 1 }, { unique: true });
 
 export const Stock = mongoose.model<IStock, StockModel>("Stock", stockSchema);
