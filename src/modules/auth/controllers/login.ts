@@ -19,7 +19,7 @@ export const login = catchAsync(
   async (req: Request<object, object, LoginRequest>, res: Response): Promise<Response> => {
     try {
       const { email, password, rememberMe } = req.body;
-      // Try Owner first, then Employee, then User
+      // Try Owner first, then Employee
       const owner = await User.findOne({ email, type: "owner" }).select("+password");
       const employee = !owner
         ? await Employee.findOne({ email }).select("+password +tempPassword")
