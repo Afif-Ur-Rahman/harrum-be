@@ -1,6 +1,7 @@
 import mongoose, { Document, Model } from "mongoose";
 
 export type StockVariant = {
+  _id?: mongoose.Types.ObjectId;
   color: string;
   quantity: number;
 };
@@ -27,21 +28,18 @@ export interface IStock extends Document {
 
 type StockModel = Model<IStock>;
 
-const variantSchema = new mongoose.Schema<StockVariant>(
-  {
-    color: {
-      type: String,
-      required: [true, "Color is required"],
-      trim: true,
-    },
-    quantity: {
-      type: Number,
-      required: [true, "Quantity is required"],
-      min: [0, "Quantity cannot be negative"],
-    },
+const variantSchema = new mongoose.Schema<StockVariant>({
+  color: {
+    type: String,
+    required: [true, "Color is required"],
+    trim: true,
   },
-  { _id: false },
-);
+  quantity: {
+    type: Number,
+    required: [true, "Quantity is required"],
+    min: [0, "Quantity cannot be negative"],
+  },
+});
 
 const historySchema = new mongoose.Schema<StockHistory>(
   {
