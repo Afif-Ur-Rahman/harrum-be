@@ -93,6 +93,7 @@ export const createStock = async (req: Request, res: Response) => {
           variants,
           history: [
             {
+              purchasePrice: item.purchasePrice,
               wholesalePrice: item.wholesalePrice,
               salePrice: item.salePrice,
               variants,
