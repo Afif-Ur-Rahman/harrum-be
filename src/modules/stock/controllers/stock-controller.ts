@@ -52,6 +52,7 @@ export const createStock = async (req: Request, res: Response) => {
 
           existingStock.name = item.name;
           existingStock.brand = item.brand;
+          existingStock.type = item.type;
           existingStock.size = item.size;
           existingStock.purchasePrice = item.purchasePrice;
           existingStock.wholesalePrice = item.wholesalePrice;
@@ -89,6 +90,7 @@ export const createStock = async (req: Request, res: Response) => {
           purchasePrice: item.purchasePrice,
           wholesalePrice: item.wholesalePrice,
           salePrice: item.salePrice,
+          type: item.type,
           size: item.size,
           variants,
           history: [

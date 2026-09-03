@@ -23,6 +23,7 @@ export interface IStock extends Document {
   salePrice: number;
   variants: StockVariant[];
   size: string;
+  type: string;
   history: StockHistory[];
 }
 
@@ -116,7 +117,12 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
     },
     size: {
       type: String,
-      default: "meter(s)",
+      required: [true, "Size is required"],
+      trim: true,
+    },
+    type: {
+      type: String,
+      required: [true, "Type is required"],
       trim: true,
     },
     variants: {
