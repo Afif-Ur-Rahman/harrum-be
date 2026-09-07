@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
-import { Stock } from "@/modules/stock/model";
 
-import { Order, OrderVariant } from "../model";
+import { Order, OrderItem, OrderVariant } from "../model";
 
 export const getOrders = async (_req: Request, res: Response) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .populate("salesman", "username email")
+      .populate("createdBy", "username email");
 
     return res.status(statusCodes.OK).json({
       success: true,
@@ -25,30 +27,72 @@ export const getOrders = async (_req: Request, res: Response) => {
 export const createOrder = async (req: Request, res: Response) => {
   try {
     const createdBy = req.user?._id;
-    const { name, brand, price, variants } = req.body;
+    const { customerName, email, phone, salesmanId, discount, items } = req.body;
 
-    if (!name || !brand || price) {
+    if (!customerName || !phone || !salesmanId) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
-        message: "Name, brand and price are required",
+        message: "Customer name, phone and salesman are required",
       });
     }
 
-    if (!Array.isArray(variants) || variants.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
-        message: "At least one variant is required",
+        message: "At least one item is required",
       });
     }
+
+    const normalizedItems: OrderItem[] = items.map((item: OrderItem) => {
+      if (!item.stockId || !item.name) {
+        throw new Error("Each item must have a stock and name");
+      }
+
+      if (!Array.isArray(item.variants) || item.variants.length === 0) {
+        throw new Error("Each item must have at least one color variant");
+      }
+
+      return {
+        stockId: item.stockId,
+        name: item.name,
+        priceType: item.priceType || "sale",
+        variants: item.variants.map((variant: OrderVariant) => {
+          const quantity = Number(variant.quantity);
+          const price = Number(variant.price);
+
+          if (!variant.color) {
+            throw new Error("Color is required for every variant");
+          }
+
+          if (!quantity || quantity <= 0) {
+            throw new Error("Quantity must be greater than 0");
+          }
+
+          return {
+            color: variant.color,
+            quantity,
+            price: isNaN(price) ? 0 : price,
+          };
+        }),
+      };
+    });
+
+    const itemsTotal = normalizedItems.reduce(
+      (sum, item) => sum + item.variants.reduce((vSum, variant) => vSum + variant.price, 0),
+      0,
+    );
+
+    const safeDiscount = Number(discount) || 0;
+    const totalPrice = Math.max(itemsTotal - safeDiscount, 0);
 
     const order = await Order.create({
-      name,
-      brand,
-      price,
-      variants: variants.map((variant: OrderVariant) => ({
-        ...variant,
-        quantity: Number(variant.quantity),
-      })),
+      customerName,
+      email,
+      phone,
+      salesman: salesmanId,
+      items: normalizedItems,
+      discount: safeDiscount,
+      totalPrice,
       createdBy,
     });
 
@@ -67,7 +111,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
 export const returnOrderItem = async (req: Request, res: Response) => {
   try {
-    const { id, stockVariantId } = req.params;
+    const { id, itemId, variantId } = req.params;
 
     const order = await Order.findById(id);
 
@@ -78,54 +122,40 @@ export const returnOrderItem = async (req: Request, res: Response) => {
       });
     }
 
-    const orderVariant = order.variants.find((v) => v.stockVariantId.toString() === stockVariantId);
+    const item = order.items.find((i: any) => i._id.toString() === itemId);
 
-    if (!orderVariant) {
+    if (!item) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    const variant = item.variants.find((v: any) => v._id.toString() === variantId);
+
+    if (!variant) {
       return res.status(statusCodes.NOT_FOUND).json({
         success: false,
         message: "Variant not found",
       });
     }
 
-    if (orderVariant.isReturned) {
+    if (variant.isReturned) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
         message: "Item is already returned",
       });
     }
 
-    if (orderVariant.isClaimed) {
+    if (variant.isClaimed) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
         message: "Claimed item cannot be returned",
       });
     }
 
-    const stock = await Stock.findById(order.stockId);
+    variant.isReturned = true;
 
-    if (!stock) {
-      return res.status(statusCodes.NOT_FOUND).json({
-        success: false,
-        message: "Stock not found",
-      });
-    }
-
-    const stockVariant = stock.variants.find(
-      (v) => v?._id && v._id.toString() === orderVariant.stockVariantId.toString(),
-    );
-
-    if (!stockVariant) {
-      return res.status(statusCodes.NOT_FOUND).json({
-        success: false,
-        message: "Stock variant not found",
-      });
-    }
-
-    stockVariant.quantity += orderVariant.quantity;
-
-    orderVariant.isReturned = true;
-
-    await stock.save();
     await order.save();
 
     return res.status(statusCodes.OK).json({
@@ -143,7 +173,7 @@ export const returnOrderItem = async (req: Request, res: Response) => {
 
 export const claimOrderItem = async (req: Request, res: Response) => {
   try {
-    const { id, stockVariantId } = req.params;
+    const { id, itemId, variantId } = req.params;
 
     const order = await Order.findById(id);
 
@@ -154,30 +184,39 @@ export const claimOrderItem = async (req: Request, res: Response) => {
       });
     }
 
-    const orderVariant = order.variants.find((v) => v.stockVariantId.toString() === stockVariantId);
+    const item = order.items.find((i: any) => i._id.toString() === itemId);
 
-    if (!orderVariant) {
+    if (!item) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    const variant = item.variants.find((v: any) => v._id.toString() === variantId);
+
+    if (!variant) {
       return res.status(statusCodes.NOT_FOUND).json({
         success: false,
         message: "Variant not found",
       });
     }
 
-    if (orderVariant.isClaimed) {
+    if (variant.isClaimed) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
         message: "Item is already claimed",
       });
     }
 
-    if (orderVariant.isReturned) {
+    if (variant.isReturned) {
       return res.status(statusCodes.BAD_REQUEST).json({
         success: false,
         message: "Returned item cannot be claimed",
       });
     }
 
-    orderVariant.isClaimed = true;
+    variant.isClaimed = true;
 
     await order.save();
 

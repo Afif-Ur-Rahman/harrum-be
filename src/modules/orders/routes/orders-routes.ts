@@ -9,7 +9,7 @@ router.use(authMiddleware);
 
 router.get("/", getOrders);
 router.post("/", createOrder);
-router.put("/return/:id/:stockVariantId", returnOrderItem);
-router.put("/claim/:id/:stockVariantId", claimOrderItem);
+router.put("/return/:id/:itemId/:variantId", returnOrderItem);
+router.put("/claim/:id/:itemId/:variantId", claimOrderItem);
 
 export { router as orderRoutes };
