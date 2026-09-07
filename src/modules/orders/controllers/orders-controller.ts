@@ -4,17 +4,40 @@ import { statusCodes } from "@/constants";
 
 import { Order, OrderItem, OrderVariant } from "../model";
 
-export const getOrders = async (_req: Request, res: Response) => {
+export const getOrders = async (req: Request, res: Response) => {
   try {
-    const orders = await Order.find()
-      .sort({ createdAt: -1 })
-      .populate("salesman", "username email")
-      .populate("createdBy", "username email");
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 30, 1);
+    const search = (req.query.search as string)?.trim();
+
+    const filter: Record<string, unknown> = {};
+
+    if (search) {
+      const regex = new RegExp(search, "i");
+      filter.$or = [{ customerName: regex }, { phone: regex }, { email: regex }];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("salesman", "username email")
+        .populate("createdBy", "username email"),
+      Order.countDocuments(filter),
+    ]);
 
     return res.status(statusCodes.OK).json({
       success: true,
       message: "Orders fetched successfully",
-      data: orders,
+      data: {
+        orders,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
     });
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({

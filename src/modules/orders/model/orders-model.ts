@@ -101,7 +101,7 @@ const orderSchema = new mongoose.Schema<IOrder, OrderModel>(
     },
     salesman: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Employee",
       required: [true, "Salesman is required"],
     },
     items: {
