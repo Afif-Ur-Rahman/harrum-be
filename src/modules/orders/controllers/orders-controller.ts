@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
-import { Stock } from "@/modules/stock/model";
+import { Customer, Stock } from "@/modules";
 
 import { Order, OrderItem, OrderVariant } from "../model";
 
@@ -51,7 +51,7 @@ export const getOrders = async (req: Request, res: Response) => {
 export const createOrder = async (req: Request, res: Response) => {
   try {
     const createdBy = req.user?._id;
-    const { customerName, email, phone, salesmanId, discount, items } = req.body;
+    const { customerName, email, phone, salesmanId, discount, items, isPaid } = req.body;
 
     if (!customerName || !phone || !salesmanId) {
       return res.status(statusCodes.BAD_REQUEST).json({
@@ -150,11 +150,28 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const safeDiscount = Number(discount) || 0;
     const totalPrice = Math.max(itemsTotal - safeDiscount, 0);
+    const isPaidFlag = Boolean(isPaid);
+
+    let customer = await Customer.findOne({ phone });
+
+    if (!customer) {
+      customer = await Customer.create({
+        name: customerName,
+        phone,
+        email,
+        remainingAmount: isPaidFlag ? 0 : totalPrice,
+      });
+    } else if (!isPaidFlag) {
+      customer.remainingAmount = (customer.remainingAmount || 0) + totalPrice;
+      await customer.save();
+    }
 
     const order = await Order.create({
       customerName,
       email,
       phone,
+      customerId: customer._id,
+      isPaid: isPaidFlag,
       salesman: salesmanId,
       items: normalizedItems,
       discount: safeDiscount,

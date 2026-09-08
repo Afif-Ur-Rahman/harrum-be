@@ -21,6 +21,8 @@ export interface IOrder extends Document {
   customerName: string;
   email?: string;
   phone: string;
+  customerId?: mongoose.Types.ObjectId;
+  isPaid: boolean;
   salesman: mongoose.Types.ObjectId;
   items: OrderItem[];
   discount: number;
@@ -98,6 +100,14 @@ const orderSchema = new mongoose.Schema<IOrder, OrderModel>(
       type: String,
       required: [true, "Phone number is required"],
       trim: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+    },
+    isPaid: {
+      type: Boolean,
+      default: false,
     },
     salesman: {
       type: mongoose.Schema.Types.ObjectId,
