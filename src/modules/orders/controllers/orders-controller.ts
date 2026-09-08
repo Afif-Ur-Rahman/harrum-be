@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
+import { Stock } from "@/modules/stock/model";
 
 import { Order, OrderItem, OrderVariant } from "../model";
 
@@ -100,6 +101,48 @@ export const createOrder = async (req: Request, res: Response) => {
       };
     });
 
+    const stockDocs = new Map<string, any>();
+
+    for (const item of normalizedItems) {
+      const stockKey = item.stockId.toString();
+      let stock = stockDocs.get(stockKey);
+
+      if (!stock) {
+        stock = await Stock.findById(item.stockId);
+
+        if (!stock) {
+          return res.status(statusCodes.NOT_FOUND).json({
+            success: false,
+            message: `Stock not found for item "${item.name}"`,
+          });
+        }
+
+        stockDocs.set(stockKey, stock);
+      }
+
+      for (const variant of item.variants) {
+        const stockVariant = stock.variants.find(
+          (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
+        );
+
+        if (!stockVariant) {
+          return res.status(statusCodes.BAD_REQUEST).json({
+            success: false,
+            message: `Color "${variant.color}" not found for "${item.name}"`,
+          });
+        }
+
+        if (stockVariant.quantity < variant.quantity) {
+          return res.status(statusCodes.BAD_REQUEST).json({
+            success: false,
+            message: `Insufficient stock for "${item.name}" (${variant.color}). Available: ${stockVariant.quantity}`,
+          });
+        }
+
+        stockVariant.quantity -= variant.quantity;
+      }
+    }
+
     const itemsTotal = normalizedItems.reduce(
       (sum, item) => sum + item.variants.reduce((vSum, variant) => vSum + variant.price, 0),
       0,
@@ -119,10 +162,22 @@ export const createOrder = async (req: Request, res: Response) => {
       createdBy,
     });
 
+    let updatedStocks: any[] = [];
+
+    try {
+      updatedStocks = await Promise.all(
+        Array.from(stockDocs.values()).map((stock) => stock.save()),
+      );
+    } catch (stockError) {
+      await Order.findByIdAndDelete(order._id);
+      throw stockError;
+    }
+
     return res.status(statusCodes.CREATED).json({
       success: true,
       message: "Order created successfully",
       data: order,
+      updatedStocks,
     });
   } catch (error: any) {
     return res.status(statusCodes.BAD_REQUEST).json({
@@ -179,12 +234,30 @@ export const returnOrderItem = async (req: Request, res: Response) => {
 
     variant.isReturned = true;
 
+    let updatedStock = null;
+    const stock = await Stock.findById(item.stockId);
+
+    if (stock) {
+      const stockVariant = stock.variants.find(
+        (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
+      );
+
+      if (stockVariant) {
+        stockVariant.quantity += variant.quantity;
+      } else {
+        stock.variants.push({ color: variant.color, quantity: variant.quantity } as any);
+      }
+
+      updatedStock = await stock.save();
+    }
+
     await order.save();
 
     return res.status(statusCodes.OK).json({
       success: true,
       message: "Item returned successfully",
       data: order,
+      updatedStock,
     });
   } catch (error: any) {
     return res.status(statusCodes.BAD_REQUEST).json({
