@@ -20,7 +20,6 @@ const customerSchema = new mongoose.Schema<ICustomer, CustomerModel>(
       type: String,
       required: [true, "Phone is required"],
       trim: true,
-      unique: true,
     },
     email: {
       type: String,
