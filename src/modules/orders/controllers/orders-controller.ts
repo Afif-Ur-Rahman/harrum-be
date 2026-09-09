@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 
 import { statusCodes } from "@/constants";
 import { Customer, Stock } from "@/modules";
@@ -49,6 +50,8 @@ export const getOrders = async (req: Request, res: Response) => {
 };
 
 export const createOrder = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+
   try {
     const createdBy = req.user?._id;
     const { customerName, email, phone, salesmanId, discount, items, isPaid } = req.body;
@@ -101,48 +104,6 @@ export const createOrder = async (req: Request, res: Response) => {
       };
     });
 
-    const stockDocs = new Map<string, any>();
-
-    for (const item of normalizedItems) {
-      const stockKey = item.stockId.toString();
-      let stock = stockDocs.get(stockKey);
-
-      if (!stock) {
-        stock = await Stock.findById(item.stockId);
-
-        if (!stock) {
-          return res.status(statusCodes.NOT_FOUND).json({
-            success: false,
-            message: `Stock not found for item "${item.name}"`,
-          });
-        }
-
-        stockDocs.set(stockKey, stock);
-      }
-
-      for (const variant of item.variants) {
-        const stockVariant = stock.variants.find(
-          (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
-        );
-
-        if (!stockVariant) {
-          return res.status(statusCodes.BAD_REQUEST).json({
-            success: false,
-            message: `Color "${variant.color}" not found for "${item.name}"`,
-          });
-        }
-
-        if (stockVariant.quantity < variant.quantity) {
-          return res.status(statusCodes.BAD_REQUEST).json({
-            success: false,
-            message: `Insufficient stock for "${item.name}" (${variant.color}). Available: ${stockVariant.quantity}`,
-          });
-        }
-
-        stockVariant.quantity -= variant.quantity;
-      }
-    }
-
     const itemsTotal = normalizedItems.reduce(
       (sum, item) => sum + item.variants.reduce((vSum, variant) => vSum + variant.price, 0),
       0,
@@ -152,48 +113,98 @@ export const createOrder = async (req: Request, res: Response) => {
     const totalPrice = Math.max(itemsTotal - safeDiscount, 0);
     const isPaidFlag = Boolean(isPaid);
 
-    let customer = await Customer.findOne({ phone });
-
-    if (!customer) {
-      customer = await Customer.create({
-        name: customerName,
-        phone,
-        email,
-        remainingAmount: isPaidFlag ? 0 : totalPrice,
-      });
-    } else if (!isPaidFlag) {
-      customer.remainingAmount = (customer.remainingAmount || 0) + totalPrice;
-      await customer.save();
-    }
-
-    const order = await Order.create({
-      customerName,
-      email,
-      phone,
-      customerId: customer._id,
-      isPaid: isPaidFlag,
-      salesman: salesmanId,
-      items: normalizedItems,
-      discount: safeDiscount,
-      totalPrice,
-      createdBy,
-    });
-
+    let createdOrder: any;
     let updatedStocks: any[] = [];
+    let notFoundMessage: string | null = null;
 
-    try {
-      updatedStocks = await Promise.all(
-        Array.from(stockDocs.values()).map((stock) => stock.save()),
+    await session.withTransaction(async () => {
+      const stockDocs = new Map<string, any>();
+
+      for (const item of normalizedItems) {
+        const stockKey = item.stockId.toString();
+        let stock = stockDocs.get(stockKey);
+
+        if (!stock) {
+          stock = await Stock.findById(item.stockId).session(session);
+
+          if (!stock) {
+            notFoundMessage = `Stock not found for item "${item.name}"`;
+            throw new Error(notFoundMessage);
+          }
+
+          stockDocs.set(stockKey, stock);
+        }
+
+        for (const variant of item.variants) {
+          const stockVariant = stock.variants.find(
+            (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
+          );
+
+          if (!stockVariant) {
+            notFoundMessage = `Color "${variant.color}" not found for "${item.name}"`;
+            throw new Error(notFoundMessage);
+          }
+
+          if (stockVariant.quantity < variant.quantity) {
+            notFoundMessage = `Insufficient stock for "${item.name}" (${variant.color}). Available: ${stockVariant.quantity}`;
+            throw new Error(notFoundMessage);
+          }
+
+          stockVariant.quantity -= variant.quantity;
+        }
+      }
+
+      // ── Customer: find-or-create, keyed by unique phone ──────────
+      let customer = await Customer.findOne({ phone }).session(session);
+
+      if (!customer) {
+        const created = await Customer.create(
+          [
+            {
+              name: customerName,
+              phone,
+              email,
+              remainingAmount: isPaidFlag ? 0 : totalPrice,
+            },
+          ],
+          { session },
+        );
+        customer = created[0];
+      } else if (!isPaidFlag) {
+        customer.remainingAmount = (customer.remainingAmount || 0) + totalPrice;
+        await customer.save({ session });
+      }
+
+      // ── Order ─────────────────────────────────────────────────────
+      const orderDocs = await Order.create(
+        [
+          {
+            customerName,
+            email,
+            phone,
+            customerId: customer._id,
+            isPaid: isPaidFlag,
+            salesman: salesmanId,
+            items: normalizedItems,
+            discount: safeDiscount,
+            totalPrice,
+            createdBy,
+          },
+        ],
+        { session },
       );
-    } catch (stockError) {
-      await Order.findByIdAndDelete(order._id);
-      throw stockError;
-    }
+      createdOrder = orderDocs[0];
+
+      // ── Stock saves (deducted quantities) ───────────────────────
+      updatedStocks = await Promise.all(
+        Array.from(stockDocs.values()).map((stock) => stock.save({ session })),
+      );
+    });
 
     return res.status(statusCodes.CREATED).json({
       success: true,
       message: "Order created successfully",
-      data: order,
+      data: createdOrder,
       updatedStocks,
     });
   } catch (error: any) {
@@ -201,79 +212,72 @@ export const createOrder = async (req: Request, res: Response) => {
       success: false,
       message: error.message || "Failed to create order",
     });
+  } finally {
+    await session.endSession();
   }
 };
 
 export const returnOrderItem = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+
   try {
     const { id, itemId, variantId } = req.params;
 
-    const order = await Order.findById(id);
+    let updatedOrder: any;
+    let updatedStock: any = null;
 
-    if (!order) {
-      return res.status(statusCodes.NOT_FOUND).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
+    await session.withTransaction(async () => {
+      const order = await Order.findById(id).session(session);
 
-    const item = order.items.find((i: any) => i._id.toString() === itemId);
-
-    if (!item) {
-      return res.status(statusCodes.NOT_FOUND).json({
-        success: false,
-        message: "Item not found",
-      });
-    }
-
-    const variant = item.variants.find((v: any) => v._id.toString() === variantId);
-
-    if (!variant) {
-      return res.status(statusCodes.NOT_FOUND).json({
-        success: false,
-        message: "Variant not found",
-      });
-    }
-
-    if (variant.isReturned) {
-      return res.status(statusCodes.BAD_REQUEST).json({
-        success: false,
-        message: "Item is already returned",
-      });
-    }
-
-    if (variant.isClaimed) {
-      return res.status(statusCodes.BAD_REQUEST).json({
-        success: false,
-        message: "Claimed item cannot be returned",
-      });
-    }
-
-    variant.isReturned = true;
-
-    let updatedStock = null;
-    const stock = await Stock.findById(item.stockId);
-
-    if (stock) {
-      const stockVariant = stock.variants.find(
-        (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
-      );
-
-      if (stockVariant) {
-        stockVariant.quantity += variant.quantity;
-      } else {
-        stock.variants.push({ color: variant.color, quantity: variant.quantity } as any);
+      if (!order) {
+        throw new Error("Order not found");
       }
 
-      updatedStock = await stock.save();
-    }
+      const item = order.items.find((i: any) => i._id.toString() === itemId);
 
-    await order.save();
+      if (!item) {
+        throw new Error("Item not found");
+      }
+
+      const variant = item.variants.find((v: any) => v._id.toString() === variantId);
+
+      if (!variant) {
+        throw new Error("Variant not found");
+      }
+
+      if (variant.isReturned) {
+        throw new Error("Item is already returned");
+      }
+
+      if (variant.isClaimed) {
+        throw new Error("Claimed item cannot be returned");
+      }
+
+      variant.isReturned = true;
+
+      const stock = await Stock.findById(item.stockId).session(session);
+
+      if (stock) {
+        const stockVariant = stock.variants.find(
+          (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
+        );
+
+        if (stockVariant) {
+          stockVariant.quantity += variant.quantity;
+        } else {
+          stock.variants.push({ color: variant.color, quantity: variant.quantity } as any);
+        }
+
+        updatedStock = await stock.save({ session });
+      }
+
+      updatedOrder = await order.save({ session });
+    });
 
     return res.status(statusCodes.OK).json({
       success: true,
       message: "Item returned successfully",
-      data: order,
+      data: updatedOrder,
       updatedStock,
     });
   } catch (error: any) {
@@ -281,6 +285,8 @@ export const returnOrderItem = async (req: Request, res: Response) => {
       success: false,
       message: error.message || "Failed to return item",
     });
+  } finally {
+    await session.endSession();
   }
 };
 
