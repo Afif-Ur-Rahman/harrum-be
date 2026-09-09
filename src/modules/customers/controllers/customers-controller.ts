@@ -23,7 +23,7 @@ export const getCustomers = catchAsync(async (_req: Request, res: Response) => {
 
 export const createCustomer = catchAsync(async (req: Request, res: Response) => {
   try {
-    const { name, phone, email } = req.body;
+    const { name, phone, email, remainingAmount } = req.body;
 
     if (!name || !phone) {
       return res.status(statusCodes.BAD_REQUEST).json({
@@ -38,11 +38,14 @@ export const createCustomer = catchAsync(async (req: Request, res: Response) => 
       });
     }
 
+    const parsedRemaining = Number(remainingAmount);
+    const safeRemaining = isNaN(parsedRemaining) || parsedRemaining < 0 ? 0 : parsedRemaining;
+
     const customer = await Customer.create({
       name,
       phone,
       email,
-      remainingAmount: 0,
+      remainingAmount: safeRemaining,
     });
 
     return res.status(statusCodes.CREATED).json({
