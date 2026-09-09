@@ -11,12 +11,17 @@ export const getOrders = async (req: Request, res: Response) => {
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 30, 1);
     const search = (req.query.search as string)?.trim();
+    const customerId = (req.query.customerId as string)?.trim();
 
     const filter: Record<string, unknown> = {};
 
     if (search) {
       const regex = new RegExp(search, "i");
       filter.$or = [{ customerName: regex }, { phone: regex }, { email: regex }];
+    }
+
+    if (customerId) {
+      filter.customerId = customerId;
     }
 
     const skip = (page - 1) * limit;
