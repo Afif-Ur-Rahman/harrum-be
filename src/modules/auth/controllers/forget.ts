@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { sendEmail } from "@/config";
 import { statusCodes } from "@/constants/statusCodes";
-import { Employee } from "@/models/employee-model";
+import { Employee } from "@/modules/employees/model/employee-model";
 import { User } from "@/modules/user/model";
 import { otpService } from "@/services";
 import { otpEmailTemplate } from "@/templates";

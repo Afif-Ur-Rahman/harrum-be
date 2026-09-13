@@ -8,12 +8,10 @@ import {
   orderRoutes,
   customerRoutes,
   receiptRoutes,
+  employeeRoutes,
 } from "@/modules";
 import { authRoutes } from "@/modules/auth/routes";
 import { settingRoutes } from "@/modules/setting/routes";
-
-import { dashboardRoutes } from "./dashboard-routes";
-import { employeeRoutes } from "./employee-routes";
 
 const router = Router();
 
@@ -25,7 +23,6 @@ router.use("/api/auth", rateLimiter, authRoutes);
 router.use("/api/users", userRoutes);
 
 router.use("/api/setting", settingRoutes);
-router.use("/api/dashboard", dashboardRoutes);
 router.use("/api/employee", employeeRoutes);
 
 router.use("/api/profile", profileRoutes);

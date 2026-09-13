@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 
 import { JWT_SECRET } from "@/constants/env";
 import { statusCodes } from "@/constants/statusCodes";
-import { Employee, IEmployee } from "@/models/employee-model";
+import { Employee, IEmployee } from "@/modules/employees/model/employee-model";
 import { IUser, User } from "@/modules/user/model";
 
 interface JwtPayload {

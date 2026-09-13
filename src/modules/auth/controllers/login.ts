@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
-import { Employee } from "@/models/employee-model";
+import { Employee } from "@/modules/employees/model/employee-model";
 import { User } from "@/modules/user/model";
 import { catchAsync } from "@/utils/catch-async";
 

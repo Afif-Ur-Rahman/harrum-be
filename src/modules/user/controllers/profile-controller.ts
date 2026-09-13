@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants/statusCodes";
-import { Employee, IEmployee } from "@/models";
 import { comparePasswords, hashPassword } from "@/modules/auth/utils";
+import { Employee, IEmployee } from "@/modules/employees";
 
 import { IUser, User } from "../model";
 
