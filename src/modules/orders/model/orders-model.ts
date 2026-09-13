@@ -13,7 +13,7 @@ export type OrderItem = {
   _id?: mongoose.Types.ObjectId;
   stockId: mongoose.Types.ObjectId;
   name: string;
-  priceType: "purchase" | "wholesale" | "sale";
+  priceType: "purchase" | "wholesale" | "sale" | "custom";
   variants: OrderVariant[];
 };
 
@@ -71,7 +71,7 @@ const orderItemSchema = new mongoose.Schema<OrderItem>({
   },
   priceType: {
     type: String,
-    enum: ["purchase", "wholesale", "sale"],
+    enum: ["purchase", "wholesale", "sale", "custom"],
     default: "sale",
   },
   variants: {
