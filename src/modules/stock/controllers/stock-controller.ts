@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
 
-import { IStock, Stock, StockVariant } from "../model";
+import { IStock, NO_COLOR_VARIANT_TYPES, Stock, StockVariant } from "../model";
 
 export const getStocks = async (_req: Request, res: Response) => {
   try {
@@ -34,12 +34,21 @@ export const createStock = async (req: Request, res: Response) => {
 
     await Promise.all(
       stockItems.map(async (item: IStock & { _id?: string }) => {
-        const variants = item.variants?.map((variant) => ({
-          color: variant.color,
-          quantity: Number(variant.quantity),
-        }));
+        const skipColorVariants = NO_COLOR_VARIANT_TYPES.includes(item.type);
 
-        if (!variants?.length) {
+        const quantity = Number(item.quantity || 0);
+
+        const variants =
+          item.variants?.map((variant) => ({
+            color: variant.color,
+            quantity: Number(variant.quantity),
+          })) || [];
+
+        if (skipColorVariants) {
+          if (!item.quantity || quantity <= 0) {
+            throw new Error("Quantity is required");
+          }
+        } else if (!variants.length) {
           throw new Error("At least one variant is required");
         }
 
@@ -58,25 +67,34 @@ export const createStock = async (req: Request, res: Response) => {
           existingStock.wholesalePrice = item.wholesalePrice;
           existingStock.salePrice = item.salePrice;
 
-          variants.forEach((newVariant) => {
-            const existingVariant = existingStock.variants.find(
-              (variant: StockVariant) =>
-                variant.color.toLowerCase() === newVariant.color.toLowerCase(),
-            );
+          if (skipColorVariants) {
+            existingStock.quantity = Number(existingStock.quantity || 0) + quantity;
 
-            if (existingVariant) {
-              existingVariant.quantity =
-                Number(existingVariant.quantity || 0) + Number(newVariant.quantity);
-            } else {
-              existingStock.variants.push(newVariant);
-            }
-          });
+            existingStock.variants = [];
+          } else {
+            variants.forEach((newVariant) => {
+              const existingVariant = existingStock.variants.find(
+                (variant: StockVariant) =>
+                  variant.color.toLowerCase() === newVariant.color.toLowerCase(),
+              );
+
+              if (existingVariant) {
+                existingVariant.quantity =
+                  Number(existingVariant.quantity || 0) + Number(newVariant.quantity);
+              } else {
+                existingStock.variants.push(newVariant);
+              }
+            });
+
+            existingStock.quantity = undefined;
+          }
 
           existingStock.history.push({
             purchasePrice: item.purchasePrice,
             wholesalePrice: item.wholesalePrice,
             salePrice: item.salePrice,
-            variants,
+            quantity: skipColorVariants ? quantity : undefined,
+            variants: skipColorVariants ? [] : variants,
             date: new Date(),
           });
 
@@ -92,13 +110,15 @@ export const createStock = async (req: Request, res: Response) => {
           salePrice: item.salePrice,
           type: item.type,
           size: item.size,
-          variants,
+          quantity: skipColorVariants ? quantity : undefined,
+          variants: skipColorVariants ? [] : variants,
           history: [
             {
               purchasePrice: item.purchasePrice,
               wholesalePrice: item.wholesalePrice,
               salePrice: item.salePrice,
-              variants,
+              quantity: skipColorVariants ? quantity : undefined,
+              variants: skipColorVariants ? [] : variants,
             },
           ],
         }).save();

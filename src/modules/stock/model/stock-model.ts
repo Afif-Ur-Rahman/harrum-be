@@ -11,6 +11,7 @@ export type StockHistory = {
   purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
+  quantity?: number;
   variants: StockVariant[];
   date: Date;
 };
@@ -21,6 +22,7 @@ export interface IStock extends Document {
   purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
+  quantity?: number;
   variants: StockVariant[];
   size: string;
   type: string;
@@ -28,6 +30,8 @@ export interface IStock extends Document {
 }
 
 type StockModel = Model<IStock>;
+
+export const NO_COLOR_VARIANT_TYPES = ["perfume", "body_spray", "accessories"];
 
 const variantSchema = new mongoose.Schema<StockVariant>({
   color: {
@@ -65,13 +69,13 @@ const historySchema = new mongoose.Schema<StockHistory>(
         message: "Sale price should be greater than or equal to wholesale price",
       },
     },
+    quantity: {
+      type: Number,
+      min: [0, "Quantity cannot be negative"],
+    },
     variants: {
       type: [variantSchema],
-      required: true,
-      validate: {
-        validator: (variants: StockVariant[]) => variants.length > 0,
-        message: "At least one variant is required in history",
-      },
+      default: [],
     },
     date: {
       type: Date,
@@ -115,6 +119,10 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
         message: "Sale price should be greater than or equal to wholesale price",
       },
     },
+    quantity: {
+      type: Number,
+      min: [0, "Quantity cannot be negative"],
+    },
     size: {
       type: String,
       required: [true, "Size is required"],
@@ -128,10 +136,6 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
     variants: {
       type: [variantSchema],
       default: [],
-      validate: {
-        validator: (variants: StockVariant[]) => variants.length > 0,
-        message: "At least one variant is required",
-      },
     },
     history: {
       type: [historySchema],
