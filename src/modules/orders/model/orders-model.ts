@@ -17,7 +17,6 @@ export type OrderItem = {
   quantity?: number;
   price?: number;
   isReturned?: boolean;
-  isClaimed?: boolean;
   variants: OrderVariant[];
 };
 
@@ -86,10 +85,6 @@ const orderItemSchema = new mongoose.Schema<OrderItem>({
     min: [0, "Price cannot be negative"],
   },
   isReturned: {
-    type: Boolean,
-    default: false,
-  },
-  isClaimed: {
     type: Boolean,
     default: false,
   },

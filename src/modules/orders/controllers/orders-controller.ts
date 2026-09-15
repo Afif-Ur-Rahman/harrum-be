@@ -398,7 +398,7 @@ export const returnOrderItemDirect = async (req: Request, res: Response) => {
     let updatedStock: any = null;
 
     await session.withTransaction(async () => {
-      const order = await Order.findById(id).session(session);
+      const order = await Order.findById(id).populate("salesman").session(session);
 
       if (!order) {
         throw new Error("Order not found");
@@ -416,10 +416,6 @@ export const returnOrderItemDirect = async (req: Request, res: Response) => {
 
       if (item.isReturned) {
         throw new Error("Item is already returned");
-      }
-
-      if (item.isClaimed) {
-        throw new Error("Claimed item cannot be returned");
       }
 
       item.isReturned = true;
