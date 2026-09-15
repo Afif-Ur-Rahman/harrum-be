@@ -2,7 +2,7 @@ import mongoose, { Document, Model } from "mongoose";
 
 export type OrderVariant = {
   _id?: mongoose.Types.ObjectId;
-  color: string;
+  color?: string;
   quantity: number;
   price: number;
   isReturned?: boolean;
@@ -14,6 +14,10 @@ export type OrderItem = {
   stockId: mongoose.Types.ObjectId;
   name: string;
   priceType: "purchase" | "wholesale" | "sale" | "custom";
+  quantity?: number;
+  price?: number;
+  isReturned?: boolean;
+  isClaimed?: boolean;
   variants: OrderVariant[];
 };
 
@@ -35,7 +39,6 @@ type OrderModel = Model<IOrder>;
 const orderVariantSchema = new mongoose.Schema<OrderVariant>({
   color: {
     type: String,
-    required: [true, "Color is required"],
     trim: true,
   },
   quantity: {
@@ -74,14 +77,37 @@ const orderItemSchema = new mongoose.Schema<OrderItem>({
     enum: ["purchase", "wholesale", "sale", "custom"],
     default: "sale",
   },
+  quantity: {
+    type: Number,
+    min: [1, "Quantity must be at least 1"],
+  },
+  price: {
+    type: Number,
+    min: [0, "Price cannot be negative"],
+  },
+  isReturned: {
+    type: Boolean,
+    default: false,
+  },
+  isClaimed: {
+    type: Boolean,
+    default: false,
+  },
   variants: {
     type: [orderVariantSchema],
     default: [],
-    validate: {
-      validator: (variants: OrderVariant[]) => variants.length > 0,
-      message: "At least one color variant is required",
-    },
   },
+});
+
+orderItemSchema.pre("validate", function (next) {
+  const hasVariants = this.variants && this.variants.length > 0;
+  const hasDirectQuantity = this.quantity !== undefined && this.quantity !== null;
+
+  if (!hasVariants && !hasDirectQuantity) {
+    return next(new Error(`Item "${this.name}" must have either color variants or a quantity`));
+  }
+
+  next();
 });
 
 const orderSchema = new mongoose.Schema<IOrder, OrderModel>(

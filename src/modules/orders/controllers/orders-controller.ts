@@ -75,44 +75,63 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const normalizedItems: OrderItem[] = items.map((item: OrderItem) => {
+    const normalizedItems: OrderItem[] = items.map((item: any) => {
       if (!item.stockId || !item.name) {
         throw new Error("Each item must have a stock and name");
       }
 
-      if (!Array.isArray(item.variants) || item.variants.length === 0) {
-        throw new Error("Each item must have at least one color variant");
+      const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
+
+      if (hasVariants) {
+        return {
+          stockId: item.stockId,
+          name: item.name,
+          priceType: item.priceType || "sale",
+          variants: item.variants.map((variant: OrderVariant) => {
+            const quantity = Number(variant.quantity);
+            const price = Number(variant.price);
+
+            if (!variant.color) {
+              throw new Error(`Color is required for every variant in "${item.name}"`);
+            }
+
+            if (!quantity || quantity <= 0) {
+              throw new Error("Quantity must be greater than 0");
+            }
+
+            return {
+              color: variant.color,
+              quantity,
+              price: isNaN(price) ? 0 : price,
+            };
+          }),
+        };
+      }
+
+      // No color variants — quantity and price live on the item itself
+      const quantity = Number(item.quantity);
+      const price = Number(item.price);
+
+      if (!quantity || quantity <= 0) {
+        throw new Error(`Quantity must be greater than 0 for "${item.name}"`);
       }
 
       return {
         stockId: item.stockId,
         name: item.name,
         priceType: item.priceType || "sale",
-        variants: item.variants.map((variant: OrderVariant) => {
-          const quantity = Number(variant.quantity);
-          const price = Number(variant.price);
-
-          if (!variant.color) {
-            throw new Error("Color is required for every variant");
-          }
-
-          if (!quantity || quantity <= 0) {
-            throw new Error("Quantity must be greater than 0");
-          }
-
-          return {
-            color: variant.color,
-            quantity,
-            price: isNaN(price) ? 0 : price,
-          };
-        }),
+        quantity,
+        price: isNaN(price) ? 0 : price,
+        variants: [],
       };
     });
 
-    const itemsTotal = normalizedItems.reduce(
-      (sum, item) => sum + item.variants.reduce((vSum, variant) => vSum + variant.price, 0),
-      0,
-    );
+    const itemsTotal = normalizedItems.reduce((sum, item) => {
+      if (item.variants.length > 0) {
+        return sum + item.variants.reduce((vSum, variant) => vSum + variant.price, 0);
+      }
+      return sum + (item.price || 0);
+    }, 0);
 
     const safeDiscount = Number(discount) || 0;
     const totalPrice = Math.max(itemsTotal - safeDiscount, 0);
@@ -140,22 +159,34 @@ export const createOrder = async (req: Request, res: Response) => {
           stockDocs.set(stockKey, stock);
         }
 
-        for (const variant of item.variants) {
-          const stockVariant = stock.variants.find(
-            (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
-          );
+        if (item.variants.length === 0) {
+          // Flat stock type — deduct stock.quantity directly
+          const qty = item.quantity || 0;
 
-          if (!stockVariant) {
-            notFoundMessage = `Color "${variant.color}" not found for "${item.name}"`;
+          if ((stock.quantity || 0) < qty) {
+            notFoundMessage = `Insufficient stock for "${item.name}". Available: ${stock.quantity || 0}`;
             throw new Error(notFoundMessage);
           }
 
-          if (stockVariant.quantity < variant.quantity) {
-            notFoundMessage = `Insufficient stock for "${item.name}" (${variant.color}). Available: ${stockVariant.quantity}`;
-            throw new Error(notFoundMessage);
-          }
+          stock.quantity = (stock.quantity || 0) - qty;
+        } else {
+          for (const variant of item.variants) {
+            const stockVariant = stock.variants.find(
+              (v: any) => v.color.toLowerCase() === variant.color!.toLowerCase(),
+            );
 
-          stockVariant.quantity -= variant.quantity;
+            if (!stockVariant) {
+              notFoundMessage = `Color "${variant.color}" not found for "${item.name}"`;
+              throw new Error(notFoundMessage);
+            }
+
+            if (stockVariant.quantity < variant.quantity) {
+              notFoundMessage = `Insufficient stock for "${item.name}" (${variant.color}). Available: ${stockVariant.quantity}`;
+              throw new Error(notFoundMessage);
+            }
+
+            stockVariant.quantity -= variant.quantity;
+          }
         }
       }
 
@@ -262,9 +293,9 @@ export const returnOrderItem = async (req: Request, res: Response) => {
 
       const stock = await Stock.findById(item.stockId).session(session);
 
-      if (stock) {
+      if (stock && variant.color) {
         const stockVariant = stock.variants.find(
-          (v: any) => v.color.toLowerCase() === variant.color.toLowerCase(),
+          (v: any) => v.color.toLowerCase() === variant.color!.toLowerCase(),
         );
 
         if (stockVariant) {
@@ -354,5 +385,67 @@ export const claimOrderItem = async (req: Request, res: Response) => {
       success: false,
       message: error.message || "Failed to claim item",
     });
+  }
+};
+
+export const returnOrderItemDirect = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { id, itemId } = req.params;
+
+    let updatedOrder: any;
+    let updatedStock: any = null;
+
+    await session.withTransaction(async () => {
+      const order = await Order.findById(id).session(session);
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      const item = order.items.find((i: any) => i._id.toString() === itemId);
+
+      if (!item) {
+        throw new Error("Item not found");
+      }
+
+      if (item.variants.length > 0) {
+        throw new Error("This item has color variants — use the variant return endpoint");
+      }
+
+      if (item.isReturned) {
+        throw new Error("Item is already returned");
+      }
+
+      if (item.isClaimed) {
+        throw new Error("Claimed item cannot be returned");
+      }
+
+      item.isReturned = true;
+
+      const stock = await Stock.findById(item.stockId).session(session);
+
+      if (stock) {
+        stock.quantity = (stock.quantity || 0) + (item.quantity || 0);
+        updatedStock = await stock.save({ session });
+      }
+
+      updatedOrder = await order.save({ session });
+    });
+
+    return res.status(statusCodes.OK).json({
+      success: true,
+      message: "Item returned successfully",
+      data: updatedOrder,
+      updatedStock,
+    });
+  } catch (error: any) {
+    return res.status(statusCodes.BAD_REQUEST).json({
+      success: false,
+      message: error.message || "Failed to return item",
+    });
+  } finally {
+    await session.endSession();
   }
 };
