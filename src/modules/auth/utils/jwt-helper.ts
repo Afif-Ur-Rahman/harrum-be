@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 import { JWT_SECRET } from "@/constants";
 
-export type AccountType = "owner" | "worker" | "accountant" | "user";
+export type AccountType = "owner" | "salesman" | "accountant" | "user";
 
 interface JwtPayload {
   id: string;
@@ -12,7 +12,7 @@ interface JwtPayload {
   accountType: AccountType;
 }
 
-const epmloyeeTypes: AccountType[] = ["worker", "accountant"];
+const epmloyeeTypes: AccountType[] = ["salesman", "accountant"];
 
 export const generateToken = (
   account: { _id: any; email: string; type?: string },

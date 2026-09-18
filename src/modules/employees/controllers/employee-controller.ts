@@ -40,7 +40,7 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
         .json({ message: "Please provide all required fields" });
     }
 
-    const allowedTypes = ["worker", "accountant"];
+    const allowedTypes = ["salesman", "accountant"];
     if (!allowedTypes.includes(type)) {
       return res.status(statusCodes.BAD_REQUEST).json({
         message: `Invalid employee type. Allowed types are: ${allowedTypes.join(", ")}`,
@@ -97,7 +97,7 @@ export const getEmployee = catchAsync(async (req: Request, res: Response) => {
     return res.status(statusCodes.OK).json({
       message: "Employees fetched successfully",
       data: {
-        worker: employees.filter((e) => e.type === "worker"),
+        salesman: employees.filter((e) => e.type === "salesman"),
         accountant: employees.filter((e) => e.type === "accountant"),
       },
     });
@@ -166,7 +166,7 @@ export const updateEmployee = catchAsync(async (req: Request, res: Response) => 
       });
     }
 
-    const allowedTypes = ["worker", "accountant"];
+    const allowedTypes = ["salesman", "accountant"];
 
     if (type && !allowedTypes.includes(type)) {
       return res.status(statusCodes.BAD_REQUEST).json({

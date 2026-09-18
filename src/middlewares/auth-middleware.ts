@@ -8,7 +8,7 @@ import { IUser, User } from "@/modules/user/model";
 
 interface JwtPayload {
   id: string;
-  accountType?: "owner" | "worker" | "accountant";
+  accountType?: "owner" | "salesman" | "accountant";
 }
 
 export const authMiddleware = async (
@@ -27,7 +27,7 @@ export const authMiddleware = async (
     let user = null;
     if (decoded.accountType === "owner") {
       user = await User.findById(decoded.id).select("-password");
-    } else if (decoded.accountType === "worker" || decoded.accountType === "accountant") {
+    } else if (decoded.accountType === "salesman" || decoded.accountType === "accountant") {
       user = await Employee.findById(decoded.id).select("-password -tempPassword");
     }
     if (!user) {
