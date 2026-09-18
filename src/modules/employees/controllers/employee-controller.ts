@@ -8,13 +8,33 @@ import { catchAsync, hashPassword } from "@/utils";
 export const createEmployee = catchAsync(async (req: Request, res: Response) => {
   try {
     const owner = req.user as IUser;
-    const { email, password, type, username } = req.body;
+    const {
+      email,
+      password,
+      type,
+      username,
+      phone,
+      guardianName,
+      guardianPhone,
+      permanentAddress,
+      currentAddress,
+    } = req.body;
 
     if (!owner || owner.type !== "owner") {
       return res.status(statusCodes.BAD_REQUEST).json({ message: "Owner not found" });
     }
 
-    if (!email || !password || !type || !username) {
+    if (
+      !email ||
+      !password ||
+      !type ||
+      !username ||
+      !phone ||
+      !guardianName ||
+      !guardianPhone ||
+      !permanentAddress ||
+      !currentAddress
+    ) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json({ message: "Please provide all required fields" });
@@ -45,6 +65,11 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       username,
       password: hashedPassword,
       type,
+      phone,
+      guardianName,
+      guardianPhone,
+      permanentAddress,
+      currentAddress,
       owner: owner._id,
     });
 
@@ -105,5 +130,101 @@ export const deleteEmployee = catchAsync(async (req: Request, res: Response) => 
     return res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
       .json({ message: error.message || "Error deleting employee", error });
+  }
+});
+
+export const updateEmployee = catchAsync(async (req: Request, res: Response) => {
+  try {
+    const owner = req.user as IUser;
+    const { id } = req.params;
+
+    if (!owner || owner.type !== "owner") {
+      return res.status(statusCodes.FORBIDDEN).json({
+        message: "Access denied. Not owner",
+      });
+    }
+
+    const {
+      email,
+      type,
+      username,
+      phone,
+      guardianName,
+      guardianPhone,
+      permanentAddress,
+      currentAddress,
+    } = req.body;
+
+    const employee = await Employee.findOne({
+      _id: id,
+      isDeleted: false,
+    });
+
+    if (!employee) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Employee not found",
+      });
+    }
+
+    const allowedTypes = ["worker", "accountant"];
+
+    if (type && !allowedTypes.includes(type)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: `Invalid employee type. Allowed types are: ${allowedTypes.join(", ")}`,
+      });
+    }
+
+    if (email && email !== employee.email) {
+      const existingEmployee = await Employee.findOne({
+        email: email.toLowerCase(),
+        _id: { $ne: id },
+        isDeleted: false,
+      });
+
+      if (existingEmployee) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Employee with this email already exists.",
+        });
+      }
+    }
+
+    const updateData: Record<string, unknown> = {
+      email,
+      type,
+      username,
+      phone,
+      guardianName,
+      guardianPhone,
+      permanentAddress,
+      currentAddress,
+    };
+
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] === undefined || updateData[key] === null || updateData[key] === "") {
+        delete updateData[key];
+      }
+    });
+
+    const updatedEmployee = await Employee.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    return res.status(statusCodes.OK).json({
+      message: "Employee updated successfully",
+      data: updatedEmployee,
+    });
+  } catch (error: Error | any) {
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: error.message || "Error updating employee",
+      error,
+    });
   }
 });
