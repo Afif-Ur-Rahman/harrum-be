@@ -1,5 +1,7 @@
 import mongoose, { Document, Model } from "mongoose";
 
+export type OrderCreatorType = "User" | "Employee";
+
 export type OrderVariant = {
   _id?: mongoose.Types.ObjectId;
   color?: string;
@@ -31,6 +33,7 @@ export interface IOrder extends Document {
   discount: number;
   totalPrice: number;
   createdBy: mongoose.Types.ObjectId;
+  createdByType: OrderCreatorType;
 }
 
 type OrderModel = Model<IOrder>;
@@ -153,9 +156,15 @@ const orderSchema = new mongoose.Schema<IOrder, OrderModel>(
       required: [true, "Total price is required"],
       min: [0, "Total price cannot be negative"],
     },
+    createdByType: {
+      type: String,
+      enum: ["User", "Employee"],
+      required: [true, "Created by type is required"],
+      default: "User",
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      refPath: "createdByType",
       required: [true, "Created by is required"],
     },
   },

@@ -2,20 +2,34 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 
 import { statusCodes } from "@/constants";
-import { Customer } from "@/modules/customers";
+import { Customer, Vendor } from "@/modules";
 import { catchAsync } from "@/utils";
 
 import { Receipt } from "../model";
+
+const PARTY_TYPES = ["Customer", "Vendor"];
+
+const getParty = (type: string): mongoose.Model<any> => (type === "Vendor" ? Vendor : Customer);
 
 export const getReceipts = catchAsync(async (req: Request, res: Response) => {
   try {
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 30, 1);
-    const customerId = (req.query.customer as string)?.trim();
+    const partyId = (req.query.party as string)?.trim();
+    const type = (req.query.type as string)?.trim();
+
+    if (type && !PARTY_TYPES.includes(type)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Type must be either Customer or Vendor",
+      });
+    }
 
     const filter: Record<string, unknown> = {};
-    if (customerId) {
-      filter.customer = customerId;
+    if (partyId) {
+      filter.party = partyId;
+    }
+    if (type) {
+      filter.type = type;
     }
 
     const skip = (page - 1) * limit;
@@ -25,7 +39,7 @@ export const getReceipts = catchAsync(async (req: Request, res: Response) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("customer", "name phone")
+        .populate("party", "name phone")
         .populate("createdBy", "username email"),
       Receipt.countDocuments(filter),
     ]);
@@ -52,11 +66,18 @@ export const createReceipt = catchAsync(async (req: Request, res: Response) => {
 
   try {
     const createdBy = req.user?._id;
-    const { customer: customerId, amount, note, paymentMethod } = req.body;
+    const createdByType = req.user?.type === "owner" ? "User" : "Employee";
+    const { party: partyId, type, amount, note, paymentMethod } = req.body;
 
-    if (!customerId || !amount || !paymentMethod) {
+    if (!partyId || !type || !amount || !paymentMethod) {
       return res.status(statusCodes.BAD_REQUEST).json({
-        message: "Customer, amount and payment method are required",
+        message: "Party, type, amount and payment method are required",
+      });
+    }
+
+    if (!PARTY_TYPES.includes(type)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Type must be either Customer or Vendor",
       });
     }
 
@@ -74,33 +95,37 @@ export const createReceipt = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
+    const PartyModel = getParty(type);
+
     let createdReceipt: any;
-    let updatedCustomer: any;
+    let updatedParty: any;
 
     await session.withTransaction(async () => {
-      const customerDoc = await Customer.findById(customerId).session(session);
+      const partyDoc = await PartyModel.findById(partyId).session(session);
 
-      if (!customerDoc) {
-        throw new Error("Customer not found");
+      if (!partyDoc) {
+        throw new Error(`${type} not found`);
       }
 
-      if (parsedAmount > (customerDoc.remainingAmount || 0)) {
+      if (parsedAmount > (partyDoc.remainingAmount || 0)) {
         throw new Error(
-          `Amount exceeds remaining balance. Customer owes ${customerDoc.remainingAmount || 0}`,
+          `Amount exceeds remaining balance. Remaining: ${partyDoc.remainingAmount || 0}`,
         );
       }
 
-      customerDoc.remainingAmount = (customerDoc.remainingAmount || 0) - parsedAmount;
-      updatedCustomer = await customerDoc.save({ session });
+      partyDoc.remainingAmount = (partyDoc.remainingAmount || 0) - parsedAmount;
+      updatedParty = await partyDoc.save({ session });
 
       const receiptDocs = await Receipt.create(
         [
           {
-            customer: customerId,
+            party: partyId,
+            type,
             amount: parsedAmount,
             note,
             paymentMethod,
             createdBy,
+            createdByType,
           },
         ],
         { session },
@@ -111,7 +136,7 @@ export const createReceipt = catchAsync(async (req: Request, res: Response) => {
     return res.status(statusCodes.CREATED).json({
       message: "Receipt created successfully",
       data: createdReceipt,
-      updatedCustomer,
+      updatedParty,
     });
   } catch (error: any) {
     return res.status(statusCodes.BAD_REQUEST).json({

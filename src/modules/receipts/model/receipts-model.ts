@@ -1,23 +1,32 @@
 import mongoose, { Document, Model } from "mongoose";
 
 export type PaymentMethod = "cash" | "online";
+export type ReceiptPartyType = "Customer" | "Vendor";
+export type ReceiptCreatorType = "User" | "Employee";
 
 export interface IReceipt extends Document {
-  customer: mongoose.Types.ObjectId;
+  party: mongoose.Types.ObjectId;
+  type: ReceiptPartyType;
   amount: number;
   note?: string;
   paymentMethod: PaymentMethod;
   createdBy: mongoose.Types.ObjectId;
+  createdByType: ReceiptCreatorType;
 }
 
 type ReceiptModel = Model<IReceipt>;
 
 const receiptSchema = new mongoose.Schema<IReceipt, ReceiptModel>(
   {
-    customer: {
+    type: {
+      type: String,
+      enum: ["Customer", "Vendor"],
+      required: [true, "Type is required"],
+    },
+    party: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
-      required: [true, "Customer is required"],
+      refPath: "type",
+      required: [true, "Party is required"],
     },
     amount: {
       type: Number,
@@ -33,9 +42,15 @@ const receiptSchema = new mongoose.Schema<IReceipt, ReceiptModel>(
       enum: ["cash", "online"],
       required: [true, "Payment method is required"],
     },
+    createdByType: {
+      type: String,
+      enum: ["User", "Employee"],
+      required: [true, "Created by type is required"],
+      default: "User",
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      refPath: "createdByType",
       required: [true, "Created by is required"],
     },
   },
@@ -44,6 +59,6 @@ const receiptSchema = new mongoose.Schema<IReceipt, ReceiptModel>(
   },
 );
 
-receiptSchema.index({ customer: 1, createdAt: -1 });
+receiptSchema.index({ party: 1, type: 1, createdAt: -1 });
 
 export const Receipt = mongoose.model<IReceipt, ReceiptModel>("Receipt", receiptSchema);

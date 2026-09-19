@@ -59,6 +59,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
   try {
     const createdBy = req.user?._id;
+    const createdByType = req.user?.type === "owner" ? "User" : "Employee";
     const { customerName, email, phone, salesmanId, discount, items, isPaid } = req.body;
 
     if (!customerName || !phone || !salesmanId) {
@@ -225,6 +226,7 @@ export const createOrder = async (req: Request, res: Response) => {
             discount: safeDiscount,
             totalPrice,
             createdBy,
+            createdByType,
           },
         ],
         { session },
