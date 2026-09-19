@@ -9,6 +9,7 @@ import {
   customerRoutes,
   receiptRoutes,
   employeeRoutes,
+  vendorRoutes,
 } from "@/modules";
 import { authRoutes } from "@/modules/auth/routes";
 import { settingRoutes } from "@/modules/setting/routes";
@@ -32,6 +33,8 @@ router.use("/api/stock", stockRoutes);
 router.use("/api/orders", orderRoutes);
 
 router.use("/api/customers", customerRoutes);
+
+router.use("/api/vendors", vendorRoutes);
 
 router.use("/api/receipts", receiptRoutes);
 

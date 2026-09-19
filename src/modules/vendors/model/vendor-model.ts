@@ -1,0 +1,43 @@
+import mongoose, { Document, Model } from "mongoose";
+
+export interface IVendor extends Document {
+  name: string;
+  phone: string;
+  email?: string;
+  remainingAmount: number;
+}
+
+type VendorModel = Model<IVendor>;
+
+const vendorSchema = new mongoose.Schema<IVendor, VendorModel>(
+  {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: [true, "Phone is required"],
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    remainingAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Remaining amount cannot be negative"],
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+
+vendorSchema.index({ phone: 1 }, { unique: true });
+vendorSchema.index({ name: 1 });
+
+export const Vendor = mongoose.model<IVendor, VendorModel>("Vendor", vendorSchema);
