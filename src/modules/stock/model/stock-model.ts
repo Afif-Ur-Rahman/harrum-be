@@ -8,6 +8,7 @@ export type StockVariant = {
 
 export type StockHistory = {
   _id?: mongoose.Types.ObjectId;
+  vendor?: mongoose.Types.ObjectId;
   purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
@@ -19,6 +20,7 @@ export type StockHistory = {
 export interface IStock extends Document {
   name: string;
   brand: string;
+  vendor?: mongoose.Types.ObjectId;
   purchasePrice: number;
   wholesalePrice: number;
   salePrice: number;
@@ -48,6 +50,10 @@ const variantSchema = new mongoose.Schema<StockVariant>({
 
 const historySchema = new mongoose.Schema<StockHistory>(
   {
+    vendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
+    },
     purchasePrice: {
       type: Number,
       required: [true, "Purchase price is required"],
@@ -97,6 +103,11 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
       required: [true, "Brand is required"],
       trim: true,
       uppercase: true,
+    },
+    vendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
+      required: [true, "Vendor is required"],
     },
     purchasePrice: {
       type: Number,
@@ -149,6 +160,7 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
 
 stockSchema.index({ name: 1 });
 stockSchema.index({ brand: 1 });
+stockSchema.index({ vendor: 1 });
 stockSchema.index({ name: 1, brand: 1 }, { unique: true });
 
 export const Stock = mongoose.model<IStock, StockModel>("Stock", stockSchema);
