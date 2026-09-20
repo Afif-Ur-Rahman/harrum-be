@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 
 import { statusCodes } from "@/constants";
+import { Stock } from "@/modules/stock";
 import { catchAsync } from "@/utils";
 
 import { Vendor } from "../model";
@@ -17,6 +19,41 @@ export const getVendors = catchAsync(async (_req: Request, res: Response) => {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: error.message || "Failed to fetch vendors",
       error,
+    });
+  }
+});
+
+export const getVendorStocks = catchAsync(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id as string)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Invalid vendor id",
+      });
+    }
+
+    const vendor = await Vendor.findById(id);
+
+    if (!vendor) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Vendor not found",
+      });
+    }
+
+    const stocks = await Stock.find({ vendor: id }).sort({
+      createdAt: -1,
+    });
+
+    return res.status(statusCodes.OK).json({
+      success: true,
+      message: "Vendor stocks fetched successfully",
+      data: stocks,
+    });
+  } catch (error: any) {
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: error.message || "Failed to fetch vendor stocks",
     });
   }
 });
