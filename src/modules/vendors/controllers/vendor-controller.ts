@@ -60,7 +60,7 @@ export const getVendorStocks = catchAsync(async (req: Request, res: Response) =>
 
 export const createVendor = catchAsync(async (req: Request, res: Response) => {
   try {
-    const { name, phone, email, remainingAmount } = req.body;
+    const { name, phone, email } = req.body;
 
     if (!name || !phone) {
       return res.status(statusCodes.BAD_REQUEST).json({
@@ -75,14 +75,10 @@ export const createVendor = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    const parsedRemaining = Number(remainingAmount);
-    const safeRemaining = isNaN(parsedRemaining) || parsedRemaining < 0 ? 0 : parsedRemaining;
-
     const vendor = await Vendor.create({
       name,
       phone,
       email,
-      remainingAmount: safeRemaining,
     });
 
     return res.status(statusCodes.CREATED).json({
