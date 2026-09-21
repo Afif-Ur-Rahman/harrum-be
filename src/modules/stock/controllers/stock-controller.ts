@@ -34,8 +34,6 @@ export const createStock = async (req: Request, res: Response) => {
       });
     }
 
-    const vendorTotals = new Map<string, number>();
-
     await Promise.all(
       stockItems.map(async (item: IStock & { _id?: string }) => {
         const skipColorVariants = NO_COLOR_VARIANT_TYPES.includes(item.type);
@@ -67,16 +65,6 @@ export const createStock = async (req: Request, res: Response) => {
         } else if (!variants.length) {
           throw new Error("At least one variant is required");
         }
-
-        const purchasePrice = Number(item.purchasePrice || 0);
-
-        const purchasedQuantity = skipColorVariants
-          ? quantity
-          : variants.reduce((sum, variant) => sum + Number(variant.quantity || 0), 0);
-
-        const purchaseAmount = purchasedQuantity * purchasePrice;
-
-        vendorTotals.set(vendorId, (vendorTotals.get(vendorId) || 0) + purchaseAmount);
 
         if (item._id) {
           const existingStock = await Stock.findById(item._id);
@@ -153,14 +141,6 @@ export const createStock = async (req: Request, res: Response) => {
           ],
         }).save();
       }),
-    );
-
-    await Promise.all(
-      Array.from(vendorTotals.entries())
-        .filter(([, amount]) => amount > 0)
-        .map(([vendorId, amount]) =>
-          Vendor.findByIdAndUpdate(vendorId, { $inc: { remainingAmount: amount } }),
-        ),
     );
 
     const stock = await Stock.find().sort({ createdAt: -1 });
