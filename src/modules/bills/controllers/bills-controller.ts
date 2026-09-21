@@ -7,44 +7,43 @@ import { catchAsync } from "@/utils";
 
 import { Bill } from "../model";
 
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
+const buildBillsPayload = async (vendorId: string, vendorRemainingAmount: number) => {
+  const bills = await Bill.find({ vendor: vendorId })
+    .sort({ createdAt: -1 })
+    .populate("createdBy", "username email");
+
+  const totalAmount = roundMoney(bills.reduce((sum, bill) => sum + bill.amount, 0));
+  const remainingAmount = roundMoney(vendorRemainingAmount || 0);
+  const paidAmount = Math.max(roundMoney(totalAmount - remainingAmount), 0);
+
+  return { bills, totalAmount, paidAmount, remainingAmount };
+};
+
 export const getBills = catchAsync(async (req: Request, res: Response) => {
   try {
-    const page = Math.max(Number(req.query.page) || 1, 1);
-    const limit = Math.max(Number(req.query.limit) || 30, 1);
     const vendorId = (req.query.vendor as string)?.trim();
 
-    const filter: Record<string, unknown> = {};
-
-    if (vendorId) {
-      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-        return res.status(statusCodes.BAD_REQUEST).json({
-          message: "Invalid vendor id",
-        });
-      }
-
-      filter.vendor = vendorId;
+    if (!vendorId || !mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "A valid vendor id is required",
+      });
     }
 
-    const skip = (page - 1) * limit;
+    const vendor = await Vendor.findById(vendorId);
 
-    const [bills, total] = await Promise.all([
-      Bill.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("vendor", "name phone")
-        .populate("createdBy", "username email"),
-      Bill.countDocuments(filter),
-    ]);
+    if (!vendor) {
+      return res.status(statusCodes.NOT_FOUND).json({
+        message: "Vendor not found",
+      });
+    }
+
+    const data = await buildBillsPayload(vendorId, vendor.remainingAmount);
 
     return res.status(statusCodes.OK).json({
       message: "Bills fetched successfully",
-      data: {
-        bills,
-        total,
-        page,
-        totalPages: Math.ceil(total / limit) || 1,
-      },
+      data,
     });
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
@@ -90,7 +89,6 @@ export const createBill = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    let createdBill: any;
     let updatedVendor: any;
 
     await session.withTransaction(async () => {
@@ -103,7 +101,7 @@ export const createBill = catchAsync(async (req: Request, res: Response) => {
       vendorDoc.remainingAmount = (vendorDoc.remainingAmount || 0) + parsedAmount;
       updatedVendor = await vendorDoc.save({ session });
 
-      const billDocs = await Bill.create(
+      await Bill.create(
         [
           {
             vendor: vendorId,
@@ -116,12 +114,13 @@ export const createBill = catchAsync(async (req: Request, res: Response) => {
         ],
         { session },
       );
-      createdBill = billDocs[0];
     });
+
+    const data = await buildBillsPayload(vendorId, updatedVendor.remainingAmount);
 
     return res.status(statusCodes.CREATED).json({
       message: "Bill created successfully",
-      data: createdBill,
+      data,
       updatedVendor,
     });
   } catch (error: any) {
