@@ -1,0 +1,141 @@
+import { Request, Response } from "express";
+import mongoose from "mongoose";
+
+import { statusCodes } from "@/constants";
+import { Vendor } from "@/modules/vendors/model";
+import { catchAsync } from "@/utils";
+
+import { Bill } from "../model";
+
+export const getBills = catchAsync(async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 30, 1);
+    const vendorId = (req.query.vendor as string)?.trim();
+
+    const filter: Record<string, unknown> = {};
+
+    if (vendorId) {
+      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+        return res.status(statusCodes.BAD_REQUEST).json({
+          message: "Invalid vendor id",
+        });
+      }
+
+      filter.vendor = vendorId;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [bills, total] = await Promise.all([
+      Bill.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("vendor", "name phone")
+        .populate("createdBy", "username email"),
+      Bill.countDocuments(filter),
+    ]);
+
+    return res.status(statusCodes.OK).json({
+      message: "Bills fetched successfully",
+      data: {
+        bills,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error: any) {
+    return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
+      message: error.message || "Failed to fetch bills",
+      error,
+    });
+  }
+});
+
+export const createBill = catchAsync(async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const createdBy = req.user?._id;
+    const createdByType = req.user?.type === "owner" ? "User" : "Employee";
+    const { vendor: vendorId, billId, note, amount } = req.body;
+
+    if (!vendorId || !billId || !amount) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Vendor, bill ID and amount are required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Invalid vendor id",
+      });
+    }
+
+    const trimmedBillId = String(billId).trim();
+
+    if (!trimmedBillId) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Bill ID is required",
+      });
+    }
+
+    const parsedAmount = Number(amount);
+
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(statusCodes.BAD_REQUEST).json({
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    let createdBill: any;
+    let updatedVendor: any;
+
+    await session.withTransaction(async () => {
+      const vendorDoc = await Vendor.findById(vendorId).session(session);
+
+      if (!vendorDoc) {
+        throw new Error("Vendor not found");
+      }
+
+      vendorDoc.remainingAmount = (vendorDoc.remainingAmount || 0) + parsedAmount;
+      updatedVendor = await vendorDoc.save({ session });
+
+      const billDocs = await Bill.create(
+        [
+          {
+            vendor: vendorId,
+            billId: trimmedBillId,
+            note,
+            amount: parsedAmount,
+            createdBy,
+            createdByType,
+          },
+        ],
+        { session },
+      );
+      createdBill = billDocs[0];
+    });
+
+    return res.status(statusCodes.CREATED).json({
+      message: "Bill created successfully",
+      data: createdBill,
+      updatedVendor,
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(statusCodes.CONFLICT).json({
+        message: "A bill with this ID already exists for this vendor",
+      });
+    }
+
+    return res.status(statusCodes.BAD_REQUEST).json({
+      message: error.message || "Failed to create bill",
+      error,
+    });
+  } finally {
+    await session.endSession();
+  }
+});
