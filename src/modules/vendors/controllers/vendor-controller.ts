@@ -2,54 +2,18 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 
 import { statusCodes } from "@/constants";
-import { Bill } from "@/modules/bills";
 import { Stock } from "@/modules/stock";
 import { catchAsync } from "@/utils";
 
 import { Vendor } from "../model";
 
-const roundMoney = (value: number) => Math.round(value * 100) / 100;
-
 export const getVendors = catchAsync(async (_req: Request, res: Response) => {
   try {
     const vendors = await Vendor.find().sort({ createdAt: -1 });
 
-    const vendorIds = vendors.map((vendor) => vendor._id);
-
-    const billSummary = await Bill.aggregate([
-      {
-        $match: {
-          vendor: { $in: vendorIds },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalAmount: {
-            $sum: "$amount",
-          },
-        },
-      },
-    ]);
-
-    const totalAmount = roundMoney(billSummary[0]?.totalAmount || 0);
-
-    const remainingAmount = roundMoney(
-      vendors.reduce((sum, vendor) => sum + (vendor.remainingAmount || 0), 0),
-    );
-
-    const paidAmount = Math.max(roundMoney(totalAmount - remainingAmount), 0);
-
     return res.status(statusCodes.OK).json({
       message: "Vendors fetched successfully",
-      data: {
-        vendors,
-        summary: {
-          totalAmount,
-          paidAmount,
-          remainingAmount,
-        },
-      },
+      data: vendors,
     });
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({

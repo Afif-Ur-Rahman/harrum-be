@@ -7,20 +7,6 @@ import { catchAsync } from "@/utils";
 
 import { Bill } from "../model";
 
-const roundMoney = (value: number) => Math.round(value * 100) / 100;
-
-const buildBillsPayload = async (vendorId: string, vendorRemainingAmount: number) => {
-  const bills = await Bill.find({ vendor: vendorId })
-    .sort({ createdAt: -1 })
-    .populate("createdBy", "username email");
-
-  const totalAmount = roundMoney(bills.reduce((sum, bill) => sum + bill.amount, 0));
-  const remainingAmount = roundMoney(vendorRemainingAmount || 0);
-  const paidAmount = Math.max(roundMoney(totalAmount - remainingAmount), 0);
-
-  return { bills, totalAmount, paidAmount, remainingAmount };
-};
-
 export const getBills = catchAsync(async (req: Request, res: Response) => {
   try {
     const vendorId = (req.query.vendor as string)?.trim();
@@ -39,11 +25,13 @@ export const getBills = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    const data = await buildBillsPayload(vendorId, vendor.remainingAmount);
+    const bills = await Bill.find({ vendor: vendorId })
+      .sort({ createdAt: -1 })
+      .populate("createdBy", "username email");
 
     return res.status(statusCodes.OK).json({
       message: "Bills fetched successfully",
-      data,
+      data: bills,
     });
   } catch (error: any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
@@ -116,11 +104,13 @@ export const createBill = catchAsync(async (req: Request, res: Response) => {
       );
     });
 
-    const data = await buildBillsPayload(vendorId, updatedVendor.remainingAmount);
+    const bills = await Bill.find({ vendor: vendorId })
+      .sort({ createdAt: -1 })
+      .populate("createdBy", "username email");
 
     return res.status(statusCodes.CREATED).json({
       message: "Bill created successfully",
-      data,
+      data: bills,
       updatedVendor,
     });
   } catch (error: any) {
