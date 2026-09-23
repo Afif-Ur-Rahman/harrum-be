@@ -8,7 +8,7 @@ import { IStock, NO_COLOR_VARIANT_TYPES, Stock, StockVariant } from "../model";
 
 export const getStocks = async (_req: Request, res: Response) => {
   try {
-    const stocks = await Stock.find().sort({ createdAt: -1 });
+    const stocks = await Stock.find().populate("vendor").sort({ createdAt: -1 });
 
     return res.status(statusCodes.OK).json({
       success: true,
