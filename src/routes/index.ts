@@ -11,6 +11,7 @@ import {
   employeeRoutes,
   vendorRoutes,
   billRoutes,
+  expenseRoutes,
 } from "@/modules";
 import { authRoutes } from "@/modules/auth/routes";
 import { settingRoutes } from "@/modules/setting/routes";
@@ -40,5 +41,7 @@ router.use("/api/vendors", vendorRoutes);
 router.use("/api/bills", billRoutes);
 
 router.use("/api/receipts", receiptRoutes);
+
+router.use("/api/expenses", expenseRoutes);
 
 export { router as routes };
