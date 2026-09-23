@@ -21,7 +21,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 
 export interface IExpense extends Document {
   amount: number;
-  note: string;
+  note?: string;
   category: ExpenseCategory;
   paymentMethod: ExpensePaymentMethod;
   date: Date;
@@ -40,7 +40,6 @@ const expenseSchema = new mongoose.Schema<IExpense, ExpenseModel>(
     },
     note: {
       type: String,
-      required: [true, "Note is required"],
       trim: true,
     },
     category: {

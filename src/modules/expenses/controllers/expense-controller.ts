@@ -9,20 +9,34 @@ export const getExpenses = catchAsync(async (req: Request, res: Response) => {
   try {
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 30, 1);
-    const category = (req.query.category as string)?.trim();
-    const from = req.query.from as string;
-    const to = req.query.to as string;
+
+    const categories = ([] as string[])
+      .concat((req.query.category as string | string[]) || [])
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const paymentMethods = ([] as string[])
+      .concat((req.query.paymentMethod as string | string[]) || [])
+      .map((m) => m.trim())
+      .filter(Boolean);
+
+    const from = (req.query.from as string)?.trim();
+    const to = (req.query.to as string)?.trim();
 
     const filter: Record<string, unknown> = {};
 
-    if (category) {
-      filter.category = category;
+    if (categories.length) {
+      filter.category = { $in: categories };
+    }
+
+    if (paymentMethods.length) {
+      filter.paymentMethod = { $in: paymentMethods };
     }
 
     if (from || to) {
       const dateFilter: Record<string, Date> = {};
-      if (from) dateFilter.$gte = new Date(from);
-      if (to) dateFilter.$lte = new Date(to);
+      if (from) dateFilter.$gte = new Date(`${from}T00:00:00.000Z`);
+      if (to) dateFilter.$lte = new Date(`${to}T23:59:59.999Z`);
       filter.date = dateFilter;
     }
 
@@ -56,13 +70,13 @@ export const getExpenses = catchAsync(async (req: Request, res: Response) => {
 
 export const createExpense = catchAsync(async (req: Request, res: Response) => {
   try {
-    const createdBy = req.user?._id;
+    const createdBy = req.user;
     const createdByType = req.user?.type === "owner" ? "User" : "Employee";
     const { amount, note, category, paymentMethod, date } = req.body;
 
-    if (!amount || !note || !category) {
+    if (!amount || !category) {
       return res.status(statusCodes.BAD_REQUEST).json({
-        message: "Amount, note and category are required",
+        message: "Amount and category are required",
       });
     }
 
@@ -92,13 +106,13 @@ export const createExpense = catchAsync(async (req: Request, res: Response) => {
       category,
       paymentMethod: paymentMethod || "cash",
       date: date ? new Date(date) : new Date(),
-      createdBy,
+      createdBy: createdBy?._id,
       createdByType,
     });
 
     return res.status(statusCodes.CREATED).json({
       message: "Expense created successfully",
-      data: expense,
+      data: { ...expense, createdBy },
     });
   } catch (error: any) {
     return res.status(statusCodes.BAD_REQUEST).json({
