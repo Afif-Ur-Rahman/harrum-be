@@ -15,6 +15,7 @@ export type OrderItem = {
   _id?: mongoose.Types.ObjectId;
   stockId: mongoose.Types.ObjectId;
   name: string;
+  size?: string;
   priceType: "purchase" | "wholesale" | "sale" | "custom";
   quantity?: number;
   price?: number;
@@ -72,6 +73,10 @@ const orderItemSchema = new mongoose.Schema<OrderItem>({
   name: {
     type: String,
     required: [true, "Name is required"],
+    trim: true,
+  },
+  size: {
+    type: String,
     trim: true,
   },
   priceType: {

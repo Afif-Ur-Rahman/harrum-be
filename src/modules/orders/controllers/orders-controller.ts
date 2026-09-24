@@ -120,6 +120,7 @@ export const createOrder = async (req: Request, res: Response) => {
       return {
         stockId: item.stockId,
         name: item.name,
+        size: item.size,
         priceType: item.priceType || "sale",
         quantity,
         price: isNaN(price) ? 0 : price,
@@ -159,6 +160,8 @@ export const createOrder = async (req: Request, res: Response) => {
 
           stockDocs.set(stockKey, stock);
         }
+
+        item.size = stock.size || item.size;
 
         if (item.variants.length === 0) {
           // Flat stock type — deduct stock.quantity directly
