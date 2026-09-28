@@ -110,9 +110,14 @@ export const createExpense = catchAsync(async (req: Request, res: Response) => {
       createdByType,
     });
 
+    const expenseData = await Expense.findById(expense._id).populate(
+      "createdBy",
+      "username email type",
+    );
+
     return res.status(statusCodes.CREATED).json({
       message: "Expense created successfully",
-      data: { ...expense, createdBy },
+      data: expenseData,
     });
   } catch (error: any) {
     return res.status(statusCodes.BAD_REQUEST).json({

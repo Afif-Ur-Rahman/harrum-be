@@ -110,16 +110,35 @@ const buildStat = (
 export const getDashboardStats = async () => {
   const { current, previous } = getMonthRanges();
 
-  const [orderMetrics, expensesCurrent, expensesPrevious] = await Promise.all([
-    getOrderMetrics(current, previous),
-    getExpenses(current),
-    getExpenses(previous),
-  ]);
+  const [orderMetrics, expensesCurrent, expensesPrevious, currentOrders, previousOrders] =
+    await Promise.all([
+      getOrderMetrics(current, previous),
+      getExpenses(current),
+      getExpenses(previous),
+      Order.countDocuments({
+        createdAt: { $gte: current.start, $lt: current.end },
+      }),
+      Order.countDocuments({
+        createdAt: { $gte: previous.start, $lt: previous.end },
+      }),
+    ]);
 
   const netIncome = (m: MonthMetrics, expenses: number) =>
     m.revenue - m.salesReturn - m.costOfGoodsSold - expenses;
 
+  const growthScore =
+    previousOrders === 0
+      ? currentOrders > 0
+        ? 100
+        : 0
+      : ((currentOrders - previousOrders) / previousOrders) * 100;
+
   return {
+    hero: {
+      totalOrders: currentOrders,
+      orderGrowth: growthScore,
+    },
+
     stats: [
       buildStat(
         "revenue",
