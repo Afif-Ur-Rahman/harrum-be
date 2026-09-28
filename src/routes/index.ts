@@ -12,6 +12,7 @@ import {
   vendorRoutes,
   billRoutes,
   expenseRoutes,
+  dashboardRoutes,
 } from "@/modules";
 import { authRoutes } from "@/modules/auth/routes";
 import { settingRoutes } from "@/modules/setting/routes";
@@ -24,6 +25,8 @@ router.get("/", (_req, res) => {
 
 router.use("/api/auth", rateLimiter, authRoutes);
 router.use("/api/users", userRoutes);
+
+router.use("/api/dashboard", dashboardRoutes);
 
 router.use("/api/setting", settingRoutes);
 router.use("/api/employee", employeeRoutes);

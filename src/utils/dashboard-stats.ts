@@ -27,16 +27,19 @@ export const formatCompactNumber = (value: number) =>
     maximumFractionDigits: 1,
   }).format(value);
 
-export const formatPercentChange = (current: number, previous: number) => {
+export const formatPercentChange = (
+  current: number,
+  previous: number,
+): { change: string; trend: "up" | "down" } => {
   if (previous === 0 && current === 0) {
     return { change: "0.0%", trend: "up" };
   }
 
   if (previous === 0) {
-    return { change: "+100.0%", trend: "up" };
+    return current > 0 ? { change: "+100.0%", trend: "up" } : { change: "-100.0%", trend: "down" };
   }
 
-  const percent = ((current - previous) / previous) * 100;
+  const percent = ((current - previous) / Math.abs(previous)) * 100;
 
   return {
     change: (percent >= 0 ? "+" : "") + percent.toFixed(1) + "%",

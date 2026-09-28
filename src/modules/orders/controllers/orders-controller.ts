@@ -162,6 +162,7 @@ export const createOrder = async (req: Request, res: Response) => {
         }
 
         item.size = stock.size || item.size;
+        item.purchasePrice = stock.purchasePrice || 0;
 
         if (item.variants.length === 0) {
           // Flat stock type — deduct stock.quantity directly
@@ -295,6 +296,7 @@ export const returnOrderItem = async (req: Request, res: Response) => {
       }
 
       variant.isReturned = true;
+      variant.returnedAt = new Date();
 
       const stock = await Stock.findById(item.stockId).session(session);
 
@@ -377,6 +379,7 @@ export const claimOrderItem = async (req: Request, res: Response) => {
     }
 
     variant.isClaimed = true;
+    variant.claimedAt = new Date();
 
     await order.save();
 
@@ -424,6 +427,7 @@ export const returnOrderItemDirect = async (req: Request, res: Response) => {
       }
 
       item.isReturned = true;
+      item.returnedAt = new Date();
 
       const stock = await Stock.findById(item.stockId).session(session);
 

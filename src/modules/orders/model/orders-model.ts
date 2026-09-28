@@ -8,7 +8,9 @@ export type OrderVariant = {
   quantity: number;
   price: number;
   isReturned?: boolean;
+  returnedAt?: Date;
   isClaimed?: boolean;
+  claimedAt?: Date;
 };
 
 export type OrderItem = {
@@ -19,7 +21,9 @@ export type OrderItem = {
   priceType: "purchase" | "wholesale" | "sale" | "custom";
   quantity?: number;
   price?: number;
+  purchasePrice?: number;
   isReturned?: boolean;
+  returnedAt?: Date;
   variants: OrderVariant[];
 };
 
@@ -35,6 +39,8 @@ export interface IOrder extends Document {
   totalPrice: number;
   createdBy: mongoose.Types.ObjectId;
   createdByType: OrderCreatorType;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 type OrderModel = Model<IOrder>;
@@ -58,9 +64,15 @@ const orderVariantSchema = new mongoose.Schema<OrderVariant>({
     type: Boolean,
     default: false,
   },
+  returnedAt: {
+    type: Date,
+  },
   isClaimed: {
     type: Boolean,
     default: false,
+  },
+  claimedAt: {
+    type: Date,
   },
 });
 
@@ -92,9 +104,17 @@ const orderItemSchema = new mongoose.Schema<OrderItem>({
     type: Number,
     min: [0, "Price cannot be negative"],
   },
+  purchasePrice: {
+    type: Number,
+    required: [true, "Purchase price is required"],
+    min: [0, "Purchase price cannot be negative"],
+  },
   isReturned: {
     type: Boolean,
     default: false,
+  },
+  returnedAt: {
+    type: Date,
   },
   variants: {
     type: [orderVariantSchema],
