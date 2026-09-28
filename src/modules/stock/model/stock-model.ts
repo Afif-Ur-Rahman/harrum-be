@@ -4,6 +4,7 @@ export type StockVariant = {
   _id?: mongoose.Types.ObjectId;
   color: string;
   quantity: number;
+  showAlert?: boolean;
 };
 
 export type StockHistory = {
@@ -29,6 +30,8 @@ export interface IStock extends Document {
   size: string;
   type: string;
   history: StockHistory[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 type StockModel = Model<IStock>;
@@ -46,6 +49,10 @@ const variantSchema = new mongoose.Schema<StockVariant>({
     required: [true, "Quantity is required"],
     min: [0, "Quantity cannot be negative"],
   },
+  showAlert: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const historySchema = new mongoose.Schema<StockHistory>(
@@ -62,7 +69,7 @@ const historySchema = new mongoose.Schema<StockHistory>(
     wholesalePrice: {
       type: Number,
       required: [true, "Whole sale price is required"],
-      min: [0, "Whole sale price cannot be negative"],
+      min: [0, "Wholesale price cannot be negative"],
     },
     salePrice: {
       type: Number,
