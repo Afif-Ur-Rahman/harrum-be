@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { statusCodes } from "@/constants";
 import { catchAsync } from "@/utils";
 
-import { dismissStockAlert, getDashboardStats, getStockAlerts } from "../services";
+import { dismissStockAlert, getDashboardStats, getStockAlerts, getTopProducts } from "../services";
 
 export const getStats = catchAsync(async (req: Request, res: Response) => {
   try {
@@ -13,9 +13,10 @@ export const getStats = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    const [dashboardStats, stockAlerts] = await Promise.all([
+    const [dashboardStats, stockAlerts, topProducts] = await Promise.all([
       getDashboardStats(),
       getStockAlerts(),
+      getTopProducts(),
     ]);
 
     return res.status(statusCodes.OK).json({
@@ -23,6 +24,7 @@ export const getStats = catchAsync(async (req: Request, res: Response) => {
       data: {
         ...dashboardStats,
         stockAlerts,
+        topProducts,
       },
     });
   } catch (error: any) {
