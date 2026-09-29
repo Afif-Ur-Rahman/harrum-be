@@ -26,6 +26,7 @@ export interface IStock extends Document {
   wholesalePrice: number;
   salePrice: number;
   quantity?: number;
+  showAlert?: boolean;
   variants: StockVariant[];
   size: string;
   type: string;
@@ -140,6 +141,10 @@ const stockSchema = new mongoose.Schema<IStock, StockModel>(
     quantity: {
       type: Number,
       min: [0, "Quantity cannot be negative"],
+    },
+    showAlert: {
+      type: Boolean,
+      default: true,
     },
     size: {
       type: String,

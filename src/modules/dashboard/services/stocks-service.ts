@@ -1,9 +1,13 @@
+import mongoose from "mongoose";
+
 import { Stock } from "@/modules/stock";
 
 export type StockAlertStatus = "Critical" | "Low" | "Moderate";
 
 export interface StockAlertItem {
   id: string;
+  stockId: string;
+  variantId?: string;
   name: string;
   brand: string;
   color?: string;
@@ -85,14 +89,15 @@ const getStockAlertStatus = (
 export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
   const stocks = await Stock.find({
     $or: [
-      { "variants.showAlert": { $ne: false } },
+      { variants: { $elemMatch: { showAlert: { $ne: false } } } },
       {
         variants: { $size: 0 },
         quantity: { $exists: true },
+        showAlert: { $ne: false },
       },
     ],
   })
-    .select("name brand size quantity variants updatedAt")
+    .select("name brand size quantity showAlert variants updatedAt")
     .lean();
 
   const alerts: StockAlertItem[] = [];
@@ -110,6 +115,8 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
 
         alerts.push({
           id: variant._id?.toString() || stock._id.toString(),
+          stockId: stock._id.toString(),
+          variantId: variant._id?.toString(),
           name: stock.name,
           brand: stock.brand,
           color: variant.color,
@@ -132,6 +139,7 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
 
     alerts.push({
       id: stock._id.toString(),
+      stockId: stock._id.toString(),
       name: stock.name,
       brand: stock.brand,
       date: stock.updatedAt.toISOString(),
@@ -142,4 +150,26 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
   }
 
   return alerts;
+};
+
+export const dismissStockAlert = async (
+  stockId: string,
+  variantId?: string,
+): Promise<"dismissed" | "not_found" | "invalid"> => {
+  if (!mongoose.Types.ObjectId.isValid(stockId)) return "invalid";
+  if (variantId && !mongoose.Types.ObjectId.isValid(variantId)) return "invalid";
+
+  const result = variantId
+    ? await Stock.updateOne(
+        { _id: stockId, "variants._id": variantId },
+        { $set: { "variants.$.showAlert": false } },
+        { timestamps: false },
+      )
+    : await Stock.updateOne(
+        { _id: stockId, variants: { $size: 0 } },
+        { $set: { showAlert: false } },
+        { timestamps: false },
+      );
+
+  return result.matchedCount === 0 ? "not_found" : "dismissed";
 };

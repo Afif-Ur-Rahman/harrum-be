@@ -96,6 +96,7 @@ export const createStock = async (req: Request, res: Response) => {
               if (existingVariant) {
                 existingVariant.quantity =
                   Number(existingVariant.quantity || 0) + Number(newVariant.quantity);
+                existingVariant.showAlert = true;
               } else {
                 existingStock.variants.push(newVariant);
               }
