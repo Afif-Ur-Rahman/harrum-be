@@ -13,6 +13,7 @@ import {
   billRoutes,
   expenseRoutes,
   dashboardRoutes,
+  permissionRoutes,
 } from "@/modules";
 import { authRoutes } from "@/modules/auth/routes";
 import { settingRoutes } from "@/modules/setting/routes";
@@ -30,6 +31,8 @@ router.use("/api/dashboard", dashboardRoutes);
 
 router.use("/api/setting", settingRoutes);
 router.use("/api/employee", employeeRoutes);
+
+router.use("/api/permissions", permissionRoutes);
 
 router.use("/api/profile", profileRoutes);
 

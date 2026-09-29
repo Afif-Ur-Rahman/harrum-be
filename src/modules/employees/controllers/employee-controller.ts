@@ -1,13 +1,14 @@
 import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
-import { Employee } from "@/modules/employees/model/employee-model";
+import { Permission } from "@/modules/permissions";
 import { IUser } from "@/modules/user/model";
 import { catchAsync, hashPassword } from "@/utils";
 
+import { Employee } from "../model";
+
 export const createEmployee = catchAsync(async (req: Request, res: Response) => {
   try {
-    const owner = req.user as IUser;
     const {
       email,
       password,
@@ -19,10 +20,6 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       permanentAddress,
       currentAddress,
     } = req.body;
-
-    if (!owner || owner.type !== "owner") {
-      return res.status(statusCodes.BAD_REQUEST).json({ message: "Owner not found" });
-    }
 
     if (
       !email ||
@@ -52,13 +49,6 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       return res.status(statusCodes.BAD_REQUEST).json({ message: "Employee already exists" });
     }
 
-    const roleExists = await Employee.findOne({ owner: owner._id, type });
-    if (roleExists) {
-      return res.status(statusCodes.FORBIDDEN).json({
-        message: `Basic plan allows only 1 ${type}. Employee of this type already exists.`,
-      });
-    }
-
     const hashedPassword = await hashPassword(password);
     const newEmployee = new Employee({
       email,
@@ -70,10 +60,14 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       guardianPhone,
       permanentAddress,
       currentAddress,
-      owner: owner._id,
     });
 
     await newEmployee.save();
+
+    await Permission.create({
+      employee: newEmployee._id,
+      pages: [],
+    });
     return res
       .status(statusCodes.CREATED)
       .json({ message: `${type} created successfully`, data: newEmployee });
@@ -87,21 +81,50 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
 
 export const getEmployee = catchAsync(async (req: Request, res: Response) => {
   try {
-    const owner = req.user as IUser;
-    if (!owner || owner.type !== "owner") {
-      return res.status(statusCodes.FORBIDDEN).json({ message: "Access denied. Not owner" });
-    }
-
-    const employees = await Employee.find({ isDeleted: false });
+    const employees = await Employee.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "permissions",
+          localField: "_id",
+          foreignField: "employee",
+          as: "permission",
+        },
+      },
+      {
+        $unwind: {
+          path: "$permission",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $set: {
+          permissions: {
+            $ifNull: ["$permission.pages", []],
+          },
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          __v: 0,
+          permission: 0,
+        },
+      },
+    ]);
 
     return res.status(statusCodes.OK).json({
       message: "Employees fetched successfully",
       data: {
-        salesman: employees.filter((e) => e.type === "salesman"),
-        accountant: employees.filter((e) => e.type === "accountant"),
+        salesman: employees.filter((employee) => employee.type === "salesman"),
+        accountant: employees.filter((employee) => employee.type === "accountant"),
       },
     });
-  } catch (error: any) {
+  } catch (error: Error | any) {
     return res.status(statusCodes.INTERNAL_SERVER_ERROR).json({
       message: error.message || "Error fetching employees",
       error,
