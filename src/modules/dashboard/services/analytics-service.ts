@@ -1,6 +1,8 @@
 import { Expense } from "@/modules/expenses/model";
 import { Order } from "@/modules/orders/model";
 
+import { addDays, DashboardRanges, diffInDays, startOfDay } from "../utils";
+
 export interface SalesAnalyticsPoint {
   label: string;
   date: string;
@@ -9,7 +11,7 @@ export interface SalesAnalyticsPoint {
   netIncome: number;
 }
 
-interface DayMetrics {
+interface BucketMetrics {
   revenue: number;
   orders: number;
   salesReturn: number;
@@ -17,30 +19,43 @@ interface DayMetrics {
   expenses: number;
 }
 
-export const getSalesAnalytics = async (): Promise<SalesAnalyticsPoint[]> => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+const emptyBucket = (): BucketMetrics => ({
+  revenue: 0,
+  orders: 0,
+  salesReturn: 0,
+  costOfGoodsSold: 0,
+  expenses: 0,
+});
 
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthLabel = start.toLocaleString("en-US", { month: "short" });
+const formatHour = (hour: number) => {
+  const period = hour < 12 ? "AM" : "PM";
+  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
 
-  const days: DayMetrics[] = Array.from({ length: daysInMonth }, () => ({
-    revenue: 0,
-    orders: 0,
-    salesReturn: 0,
-    costOfGoodsSold: 0,
-    expenses: 0,
-  }));
+  return `${twelveHour} ${period}`;
+};
 
-  const bucketFor = (date?: Date) =>
-    date && date >= start && date < end ? days[date.getDate() - 1] : null;
+const formatMonth = (date: Date) => date.toLocaleString("en-US", { month: "short" });
 
-  // updatedAt >= start also catches orders created this month
+export const getSalesAnalytics = async ({
+  current,
+  days,
+}: DashboardRanges): Promise<SalesAnalyticsPoint[]> => {
+  const { start, end } = current;
+
+  const hourly = days === 1;
+
+  const buckets: BucketMetrics[] = Array.from({ length: hourly ? 24 : days }, emptyBucket);
+
+  const bucketFor = (date?: Date) => {
+    if (!date || date < start || date >= end) return null;
+
+    const index = hourly ? date.getHours() : diffInDays(start, startOfDay(date));
+
+    return buckets[index] ?? null;
+  };
+
   const [orders, expenses] = await Promise.all([
-    Order.find({ updatedAt: { $gte: start } }).lean(),
+    Order.find({ updatedAt: { $gte: start }, createdAt: { $lt: end } }).lean(),
     Expense.find({ date: { $gte: start, $lt: end } })
       .select("amount date")
       .lean(),
@@ -100,11 +115,30 @@ export const getSalesAnalytics = async (): Promise<SalesAnalyticsPoint[]> => {
     }
   }
 
-  return days.map((day, index) => ({
-    label: String(index + 1),
-    date: `${index + 1} ${monthLabel}`,
-    revenue: day.revenue,
-    orders: day.orders,
-    netIncome: day.revenue - day.salesReturn - day.costOfGoodsSold - day.expenses,
-  }));
+  const spansYears = start.getFullYear() !== addDays(end, -1).getFullYear();
+
+  return buckets.map((bucket, index) => {
+    let label: string;
+    let date: string;
+
+    if (hourly) {
+      label = formatHour(index);
+      date = `${start.getDate()} ${formatMonth(start)}, ${formatHour(index)}`;
+    } else {
+      const day = addDays(start, index);
+      const dayNumber = day.getDate();
+      const month = formatMonth(day);
+
+      label = index === 0 || dayNumber === 1 ? `${dayNumber} ${month}` : String(dayNumber);
+      date = `${dayNumber} ${month}${spansYears ? ` ${day.getFullYear()}` : ""}`;
+    }
+
+    return {
+      label,
+      date,
+      revenue: bucket.revenue,
+      orders: bucket.orders,
+      netIncome: bucket.revenue - bucket.salesReturn - bucket.costOfGoodsSold - bucket.expenses,
+    };
+  });
 };

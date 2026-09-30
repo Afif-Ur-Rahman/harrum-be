@@ -2,26 +2,16 @@ import { Expense } from "@/modules/expenses/model";
 import { Order } from "@/modules/orders/model";
 import { formatCompactNumber, formatPercentChange } from "@/utils";
 
-interface DateRange {
-  start: Date;
-  end: Date;
-}
+import { DashboardRanges, DateRange } from "../utils";
 
-interface MonthMetrics {
+interface PeriodMetrics {
   revenue: number;
   salesReturn: number;
   costOfGoodsSold: number;
 }
 
-const getMonthRanges = (now = new Date()) => {
-  const year = now.getFullYear();
-  const month = now.getMonth();
-
-  return {
-    current: { start: new Date(year, month, 1), end: new Date(year, month + 1, 1) },
-    previous: { start: new Date(year, month - 1, 1), end: new Date(year, month, 1) },
-  };
-};
+const getComparisonLabel = ({ filter, days }: DashboardRanges) =>
+  filter === "today" ? "vs yesterday" : `vs previous ${days} days`;
 
 const getExpenses = async ({ start, end }: DateRange) => {
   const [result] = await Expense.aggregate([
@@ -33,9 +23,12 @@ const getExpenses = async ({ start, end }: DateRange) => {
 };
 
 const getOrderMetrics = async (current: DateRange, previous: DateRange) => {
-  const orders = await Order.find({ updatedAt: { $gte: previous.start } }).lean();
+  const orders = await Order.find({
+    updatedAt: { $gte: previous.start },
+    createdAt: { $lt: current.end },
+  }).lean();
 
-  const empty = (): MonthMetrics => ({ revenue: 0, salesReturn: 0, costOfGoodsSold: 0 });
+  const empty = (): PeriodMetrics => ({ revenue: 0, salesReturn: 0, costOfGoodsSold: 0 });
   const metrics = { current: empty(), previous: empty() };
 
   const bucketFor = (date?: Date) => {
@@ -107,8 +100,8 @@ const buildStat = (
   subtitle,
 });
 
-export const getDashboardStats = async () => {
-  const { current, previous } = getMonthRanges();
+export const getDashboardStats = async (ranges: DashboardRanges) => {
+  const { current, previous } = ranges;
 
   const [orderMetrics, expensesCurrent, expensesPrevious, currentOrders, previousOrders] =
     await Promise.all([
@@ -123,7 +116,7 @@ export const getDashboardStats = async () => {
       }),
     ]);
 
-  const netIncome = (m: MonthMetrics, expenses: number) =>
+  const netIncome = (m: PeriodMetrics, expenses: number) =>
     m.revenue - m.salesReturn - m.costOfGoodsSold - expenses;
 
   const growthScore =
@@ -143,7 +136,7 @@ export const getDashboardStats = async () => {
       buildStat(
         "revenue",
         "Total Revenue",
-        "vs last month",
+        getComparisonLabel(ranges),
         orderMetrics.current.revenue,
         orderMetrics.previous.revenue,
       ),

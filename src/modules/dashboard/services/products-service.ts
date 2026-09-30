@@ -1,5 +1,7 @@
 import { Order } from "@/modules/orders/model";
 
+import { DateRange } from "../utils";
+
 export interface TopProductItem {
   stockId: string;
   name: string;
@@ -12,11 +14,10 @@ export interface TopProductItem {
 const TOP_PRODUCTS_LIMIT = 5;
 
 export const getTopProducts = async (
+  range: DateRange,
   limit = TOP_PRODUCTS_LIMIT,
 ): Promise<{ products: TopProductItem[]; totalUnits: number }> => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const { start, end } = range;
 
   const rows = await Order.aggregate([
     { $match: { createdAt: { $gte: start, $lt: end } } },
