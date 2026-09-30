@@ -13,73 +13,69 @@ export interface StockAlertItem {
   color?: string;
   date: string;
   quantity: string;
-  threshold: string;
   status: StockAlertStatus;
 }
+
+const isMeter = (size: string) => {
+  const s = size.toLowerCase().trim();
+  return s.includes("meter") || s === "m" || s === "meters";
+};
+
+const isPiece = (size: string) => {
+  const s = size.toLowerCase().trim();
+  return s.includes("piece") || s === "pcs" || s === "pc";
+};
+
+const isGaz = (size: string) => {
+  const s = size.toLowerCase().trim();
+  return s.includes("gaz") || s === "gz";
+};
+
+const normalizeType = (type: string) =>
+  type
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[\s-]+/g, "_");
 
 const getStockAlertStatus = (
   quantity: number,
   size: string,
-): {
-  status: StockAlertStatus;
-  threshold: number;
-} | null => {
-  const normalizedSize = size.toLowerCase().trim();
+  type: string,
+): StockAlertStatus | null => {
+  const normalizedType = normalizeType(type || "");
 
-  // Meters
-  if (normalizedSize.includes("meter") || normalizedSize === "m") {
-    if (quantity <= 4.5) {
-      return {
-        status: "Critical",
-        threshold: 4.5,
-      };
+  if (isPiece(size)) {
+    if (quantity < 2) return "Critical";
+    if (quantity === 2) return "Low";
+    return null;
+  }
+
+  if (isMeter(size)) {
+    if (normalizedType === "latha") {
+      if (quantity <= 7) return "Critical";
+      if (quantity <= 14) return "Low";
+      return null;
     }
 
-    if (quantity <= 9) {
-      return {
-        status: "Low",
-        threshold: 9,
-      };
+    if (normalizedType === "cotton") {
+      if (quantity <= 4.5) return "Critical";
+      if (quantity <= 9) return "Low";
+      return null;
+    }
+
+    if (normalizedType === "wash_and_wear") {
+      if (quantity <= 4) return "Critical";
+      if (quantity <= 8) return "Low";
+      return null;
     }
 
     return null;
   }
 
-  // Pieces
-  if (normalizedSize.includes("piece") || normalizedSize === "pcs" || normalizedSize === "pc") {
-    if (quantity < 2) {
-      return {
-        status: "Critical",
-        threshold: 2,
-      };
-    }
-
-    if (quantity === 2) {
-      return {
-        status: "Low",
-        threshold: 2,
-      };
-    }
-
-    return null;
-  }
-
-  // Gaz
-  if (normalizedSize.includes("gaz")) {
-    if (quantity <= 7) {
-      return {
-        status: "Critical",
-        threshold: 7,
-      };
-    }
-
-    if (quantity <= 14) {
-      return {
-        status: "Low",
-        threshold: 14,
-      };
-    }
-
+  if (isGaz(size) && normalizedType === "boski") {
+    if (quantity <= 7) return "Critical";
+    if (quantity <= 14) return "Low";
     return null;
   }
 
@@ -97,21 +93,21 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
       },
     ],
   })
-    .select("name brand size quantity showAlert variants updatedAt")
+    .select("name brand size type quantity showAlert variants updatedAt")
     .lean();
 
   const alerts: StockAlertItem[] = [];
 
   for (const stock of stocks) {
-    // Stocks with variants
+    const stockType = stock.type || "";
+
     if (stock.variants?.length) {
       for (const variant of stock.variants) {
-        // Explicitly disabled alert
         if (variant.showAlert === false) continue;
 
-        const result = getStockAlertStatus(variant.quantity, stock.size);
+        const status = getStockAlertStatus(variant.quantity, stock.size, stockType);
 
-        if (!result) continue;
+        if (!status) continue;
 
         alerts.push({
           id: variant._id?.toString() || stock._id.toString(),
@@ -122,20 +118,18 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
           color: variant.color,
           date: stock.updatedAt.toISOString(),
           quantity: `${variant.quantity} ${stock.size}`,
-          threshold: `${result.threshold} ${stock.size}`,
-          status: result.status,
+          status,
         });
       }
 
       continue;
     }
 
-    // Stocks without variants
     if (stock.quantity === undefined) continue;
 
-    const result = getStockAlertStatus(stock.quantity, stock.size);
+    const status = getStockAlertStatus(stock.quantity, stock.size, stockType);
 
-    if (!result) continue;
+    if (!status) continue;
 
     alerts.push({
       id: stock._id.toString(),
@@ -144,8 +138,7 @@ export const getStockAlerts = async (): Promise<StockAlertItem[]> => {
       brand: stock.brand,
       date: stock.updatedAt.toISOString(),
       quantity: `${stock.quantity} ${stock.size}`,
-      threshold: `${result.threshold} ${stock.size}`,
-      status: result.status,
+      status,
     });
   }
 

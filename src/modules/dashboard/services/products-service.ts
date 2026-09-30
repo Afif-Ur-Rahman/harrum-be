@@ -20,56 +20,139 @@ export const getTopProducts = async (
   const { start, end } = range;
 
   const rows = await Order.aggregate([
-    { $match: { createdAt: { $gte: start, $lt: end } } },
+    {
+      $match: {
+        createdAt: {
+          $gte: start,
+          $lt: end,
+        },
+      },
+    },
+
     { $unwind: "$items" },
+
     {
       $project: {
         stockId: "$items.stockId",
         name: "$items.name",
         size: "$items.size",
+
         lines: {
           $cond: [
-            { $gt: [{ $size: { $ifNull: ["$items.variants", []] } }, 0] },
+            {
+              $gt: [
+                {
+                  $size: {
+                    $ifNull: ["$items.variants", []],
+                  },
+                },
+                0,
+              ],
+            },
+
             {
               $map: {
                 input: {
                   $filter: {
                     input: "$items.variants",
                     as: "v",
-                    cond: { $ne: ["$$v.isReturned", true] },
+                    cond: {
+                      $ne: ["$$v.isReturned", true],
+                    },
                   },
                 },
                 as: "v",
-                in: { quantity: "$$v.quantity", amount: "$$v.price" },
+                in: {
+                  units: {
+                    $ifNull: ["$$v.quantity", 0],
+                  },
+
+                  totalUnitCount: 1,
+
+                  amount: {
+                    $ifNull: ["$$v.price", 0],
+                  },
+                },
               },
             },
+
             {
               $cond: [
-                { $eq: ["$items.isReturned", true] },
+                {
+                  $eq: ["$items.isReturned", true],
+                },
                 [],
-                [{ quantity: "$items.quantity", amount: "$items.price" }],
+
+                [
+                  {
+                    units: {
+                      $ifNull: ["$items.quantity", 0],
+                    },
+
+                    totalUnitCount: {
+                      $ifNull: ["$items.quantity", 0],
+                    },
+
+                    amount: {
+                      $ifNull: ["$items.price", 0],
+                    },
+                  },
+                ],
               ],
             },
           ],
         },
       },
     },
+
     { $unwind: "$lines" },
+
     {
       $group: {
         _id: "$stockId",
-        name: { $first: "$name" },
-        size: { $first: "$size" },
-        units: { $sum: { $ifNull: ["$lines.quantity", 0] } },
-        revenue: { $sum: { $ifNull: ["$lines.amount", 0] } },
+
+        name: {
+          $first: "$name",
+        },
+
+        size: {
+          $first: "$size",
+        },
+
+        units: {
+          $sum: "$lines.units",
+        },
+
+        totalUnitCount: {
+          $sum: "$lines.totalUnitCount",
+        },
+
+        revenue: {
+          $sum: "$lines.amount",
+        },
       },
     },
-    { $match: { units: { $gt: 0 } } },
-    { $sort: { units: -1 } },
-    { $limit: limit },
+
+    {
+      $match: {
+        units: {
+          $gt: 0,
+        },
+      },
+    },
+
+    {
+      $sort: {
+        units: -1,
+      },
+    },
+
+    {
+      $limit: limit,
+    },
   ]);
 
-  const totalUnits = rows.reduce((sum, row) => sum + row.units, 0);
+  const totalUnits = rows.reduce((sum, row) => sum + row.totalUnitCount, 0);
 
   const products: TopProductItem[] = rows.map((row) => ({
     stockId: String(row._id),
@@ -77,8 +160,12 @@ export const getTopProducts = async (
     size: row.size,
     units: row.units,
     revenue: row.revenue,
-    share: totalUnits ? Math.round((row.units / totalUnits) * 100) : 0,
+
+    share: totalUnits ? Math.round((row.totalUnitCount / totalUnits) * 100) : 0,
   }));
 
-  return { products, totalUnits };
+  return {
+    products,
+    totalUnits,
+  };
 };
