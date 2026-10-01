@@ -1,1 +1,1 @@
-export * from "./dashboad-routes";
+export * from "./dashboard-routes";

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import { statusCodes } from "@/constants";
 import { Employee } from "@/modules/employees/model/employee-model";
+import { Permission } from "@/modules/permissions/model";
 import { User } from "@/modules/user/model";
 import { catchAsync } from "@/utils/catch-async";
 
@@ -19,10 +20,9 @@ export const login = catchAsync(
   async (req: Request<object, object, LoginRequest>, res: Response): Promise<Response> => {
     try {
       const { email, password, rememberMe } = req.body;
-      // Try Owner first, then Employee
       const owner = await User.findOne({ email, type: "owner" }).select("+password");
       const employee = !owner
-        ? await Employee.findOne({ email }).select("+password +tempPassword")
+        ? await Employee.findOne({ email, isDeleted: false }).select("+password")
         : null;
 
       const account = owner ?? employee;
@@ -42,6 +42,11 @@ export const login = catchAsync(
       delete (accountObj as any).password;
       delete (accountObj as any).tempPassword;
       delete (accountObj as any).__v;
+
+      if (employee) {
+        const permission = await Permission.findOne({ employee: employee._id }).lean();
+        (accountObj as any).permissions = permission?.pages ?? [];
+      }
 
       return res.status(statusCodes.OK).json({
         message: "Login successful. Welcome to the App. 😀🎊 !",

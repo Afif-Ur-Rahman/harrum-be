@@ -16,12 +16,6 @@ const getQueryString = (value: unknown) => (typeof value === "string" ? value.tr
 
 export const getStats = catchAsync(async (req: Request, res: Response) => {
   try {
-    if (req.user?.type !== "owner") {
-      return res.status(statusCodes.FORBIDDEN).json({
-        message: "Access denied. Not owner",
-      });
-    }
-
     const ranges = getDashboardRanges({
       filter: getQueryString(req.query.filter),
       from: getQueryString(req.query.from),
@@ -58,10 +52,6 @@ export const getStats = catchAsync(async (req: Request, res: Response) => {
 
 export const dismissStock = catchAsync(async (req: Request, res: Response) => {
   try {
-    if (req.user?.type !== "owner") {
-      return res.status(statusCodes.FORBIDDEN).json({ message: "Access denied. Not owner" });
-    }
-
     const { stockId } = req.params;
     const { variantId } = req.body ?? {};
 

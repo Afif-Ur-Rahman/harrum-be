@@ -1,11 +1,12 @@
 import { Router } from "express";
 
-import { authMiddleware } from "@/middlewares/auth-middleware";
+import { authMiddleware, requirePermission } from "@/middlewares";
 
 import { createExpense, deleteExpense, getExpenses, updateExpense } from "../controllers";
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requirePermission("expenses"));
 
 router.get("/", getExpenses);
 router.post("/", createExpense);

@@ -1,12 +1,12 @@
 import { Router } from "express";
 
-import { authMiddleware } from "@/middlewares";
+import { authMiddleware, ownerOnly } from "@/middlewares";
 
 import { updatePermissions } from "../controllers";
 
 const router = Router();
 
-router.use(authMiddleware);
+router.use(authMiddleware, ownerOnly);
 
 router.put("/:employeeId", updatePermissions);
 

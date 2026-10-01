@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { authMiddleware } from "@/middlewares/auth-middleware";
+import { authMiddleware, requirePermission } from "@/middlewares";
 
 import {
   createVendor,
@@ -13,10 +13,11 @@ import {
 const router = Router();
 router.use(authMiddleware);
 
-router.get("/", getVendors);
-router.get("/:id/stocks", getVendorStocks);
-router.post("/", createVendor);
-router.put("/:id", updateVendor);
-router.delete("/:id", deleteVendor);
+router.get("/", requirePermission("vendors", "stocks"), getVendors);
+
+router.get("/:id/stocks", requirePermission("vendors"), getVendorStocks);
+router.post("/", requirePermission("vendors"), createVendor);
+router.put("/:id", requirePermission("vendors"), updateVendor);
+router.delete("/:id", requirePermission("vendors"), deleteVendor);
 
 export { router as vendorRoutes };

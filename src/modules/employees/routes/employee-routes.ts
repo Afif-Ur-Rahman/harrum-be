@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { authMiddleware } from "@/middlewares";
+import { authMiddleware, requirePermission } from "@/middlewares";
 import {
   createEmployee,
   deleteEmployee,
@@ -12,9 +12,10 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.post("/", createEmployee);
-router.get("/", getEmployee);
-router.put("/:id", updateEmployee);
-router.delete("/:id", deleteEmployee);
+router.get("/", requirePermission("employees", "orders"), getEmployee);
+
+router.post("/", requirePermission("employees"), createEmployee);
+router.put("/:id", requirePermission("employees"), updateEmployee);
+router.delete("/:id", requirePermission("employees"), deleteEmployee);
 
 export { router as employeeRoutes };

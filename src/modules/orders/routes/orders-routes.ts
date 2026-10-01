@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { authMiddleware } from "@/middlewares/auth-middleware";
+import { authMiddleware, requirePermission } from "@/middlewares";
 
 import {
   claimOrderItem,
@@ -13,12 +13,13 @@ import {
 const router = Router();
 router.use(authMiddleware);
 
-router.get("/", getOrders);
-router.post("/", createOrder);
+router.get("/", requirePermission("orders", "customers"), getOrders);
 
-router.put("/return/:id/:itemId/:variantId", returnOrderItem);
-router.put("/claim/:id/:itemId/:variantId", claimOrderItem);
+router.post("/", requirePermission("orders"), createOrder);
 
-router.put("/return-item/:id/:itemId", returnOrderItemDirect);
+router.put("/return/:id/:itemId/:variantId", requirePermission("orders"), returnOrderItem);
+router.put("/claim/:id/:itemId/:variantId", requirePermission("orders"), claimOrderItem);
+
+router.put("/return-item/:id/:itemId", requirePermission("orders"), returnOrderItemDirect);
 
 export { router as orderRoutes };
