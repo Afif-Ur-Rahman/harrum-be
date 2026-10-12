@@ -5,6 +5,7 @@ export type EmployeeRole = "salesman" | "accountant";
 export interface IEmployee extends Document {
   email: string;
   password?: string;
+  cnic: string;
   username: string;
   type: EmployeeRole;
   phone: string;
@@ -30,6 +31,12 @@ const employeeSchema = new mongoose.Schema<IEmployee>(
     password: {
       type: String,
       minlength: 8,
+    },
+
+    cnic: {
+      type: String,
+      trim: true,
+      unique: true,
     },
 
     username: {

@@ -7,6 +7,13 @@ import { catchAsync, hashPassword } from "@/utils";
 
 import { Employee } from "../model";
 
+const NIC_REGEX = /^\d{5}-?\d{7}-?\d$/;
+
+const formatNic = (nic: string) => {
+  const digits = nic.replace(/\D/g, "");
+  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+};
+
 export const createEmployee = catchAsync(async (req: Request, res: Response) => {
   try {
     const {
@@ -15,6 +22,7 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       type,
       username,
       phone,
+      cnic,
       guardianName,
       guardianPhone,
       permanentAddress,
@@ -27,6 +35,7 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       !type ||
       !username ||
       !phone ||
+      !cnic ||
       !guardianName ||
       !guardianPhone ||
       !permanentAddress ||
@@ -37,6 +46,13 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
         .json({ message: "Please provide all required fields" });
     }
 
+    if (!NIC_REGEX.test(String(cnic).trim())) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json({ message: "Invalid NIC. Use format 12345-1234567-1" });
+    }
+    const formattedNic = formatNic(String(cnic).trim());
+
     const allowedTypes = ["salesman", "accountant"];
     if (!allowedTypes.includes(type)) {
       return res.status(statusCodes.BAD_REQUEST).json({
@@ -44,14 +60,20 @@ export const createEmployee = catchAsync(async (req: Request, res: Response) => 
       });
     }
 
-    const existingEmployee = await Employee.findOne({ email });
+    const existingEmployee = await Employee.findOne({
+      email,
+      cnic: formattedNic,
+    });
     if (existingEmployee) {
-      return res.status(statusCodes.BAD_REQUEST).json({ message: "Employee already exists" });
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json({ message: "Employee with this CNIC or email already exists" });
     }
 
     const hashedPassword = await hashPassword(password);
     const newEmployee = new Employee({
       email,
+      cnic: formattedNic,
       username,
       password: hashedPassword,
       type,
@@ -169,6 +191,7 @@ export const updateEmployee = catchAsync(async (req: Request, res: Response) => 
 
     const {
       email,
+      nic,
       type,
       username,
       phone,
@@ -177,6 +200,13 @@ export const updateEmployee = catchAsync(async (req: Request, res: Response) => 
       permanentAddress,
       currentAddress,
     } = req.body;
+
+    if (!NIC_REGEX.test(String(nic).trim())) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json({ message: "Invalid NIC. Use format 12345-1234567-1" });
+    }
+    const formattedNic = formatNic(String(nic).trim());
 
     const employee = await Employee.findOne({
       _id: id,
@@ -200,19 +230,21 @@ export const updateEmployee = catchAsync(async (req: Request, res: Response) => 
     if (email && email !== employee.email) {
       const existingEmployee = await Employee.findOne({
         email: email.toLowerCase(),
+        cnic: formattedNic,
         _id: { $ne: id },
         isDeleted: false,
       });
 
       if (existingEmployee) {
         return res.status(statusCodes.BAD_REQUEST).json({
-          message: "Employee with this email already exists.",
+          message: "Employee with this CNIC or email already exists.",
         });
       }
     }
 
     const updateData: Record<string, unknown> = {
       email,
+      cnic: formattedNic,
       type,
       username,
       phone,
