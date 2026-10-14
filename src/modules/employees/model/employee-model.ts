@@ -1,6 +1,12 @@
 import mongoose, { Document } from "mongoose";
 
-export type EmployeeRole = "salesman" | "accountant";
+export type EmployeeRole =
+  | "cleaner"
+  | "mop_boy"
+  | "salesman"
+  | "accountant"
+  | "manager"
+  | "senior_salesman";
 
 export interface IEmployee extends Document {
   email: string;
@@ -47,7 +53,7 @@ const employeeSchema = new mongoose.Schema<IEmployee>(
 
     type: {
       type: String,
-      enum: ["salesman", "accountant"],
+      enum: ["cleaner", "mop_boy", "salesman", "accountant", "manager", "senior_salesman"],
       required: true,
     },
 
